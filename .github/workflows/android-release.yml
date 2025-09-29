@@ -14,7 +14,7 @@ on:
       - ".github/workflows/android-release.yml"
 
 env:
-  FLUTTER_VERSION: "3.24.0"
+  FLUTTER_VERSION: "3.27.0"
 
 jobs:
   # Pre-release job for PRs from feat/* and fix/* branches
