@@ -44,6 +44,9 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
+# Local development configuration (contains sensitive data)
+.env
+
 # Release keystore (keep secure!)
 android/app/release-keystore.jks
 android/key.properties

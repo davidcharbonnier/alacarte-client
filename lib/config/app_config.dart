@@ -1,20 +1,36 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 /// Application configuration settings
 class AppConfig {
   static const String appName = 'A la carte';
-  static const String appVersion = '{{APP_VERSION}}';
-
-  // API Configuration - all values injected from GitHub secrets/variables
-  static const String baseUrl = kDebugMode
-      ? '{{DEVELOPMENT_API_URL}}'
-      : '{{PRODUCTION_API_URL}}';
-
-  // Google OAuth Configuration - all values injected from GitHub secrets
-  // Web client ID - used for both web app and as serverClientId for Android
-  static const String googleWebClientId = kDebugMode
-      ? '{{DEVELOPMENT_GOOGLE_CLIENT_ID}}'
-      : '{{PRODUCTION_GOOGLE_CLIENT_ID}}';
+  
+  // Environment-based configuration
+  static String get appVersion {
+    final version = dotenv.env['APP_VERSION'];
+    if (version == null || version.isEmpty) {
+      throw Exception('APP_VERSION environment variable is required but not set');
+    }
+    return version;
+  }
+  
+  // API Configuration - requires environment variables
+  static String get baseUrl {
+    final url = dotenv.env['API_BASE_URL'];
+    if (url == null || url.isEmpty) {
+      throw Exception('API_BASE_URL environment variable is required but not set');
+    }
+    return url;
+  }
+  
+  // Google OAuth Configuration
+  static String get googleWebClientId {
+    final clientId = dotenv.env['GOOGLE_CLIENT_ID'];
+    if (clientId == null || clientId.isEmpty) {
+      throw Exception('GOOGLE_CLIENT_ID environment variable is required but not set');
+    }
+    return clientId;
+  }
 
   // TODO: Add API key management when implemented on backend
   // static const String apiKeyHeaderName = 'Authorization';

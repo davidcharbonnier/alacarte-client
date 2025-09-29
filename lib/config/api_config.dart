@@ -2,7 +2,7 @@ import 'app_config.dart';
 
 /// API endpoints configuration matching the Go backend routes
 class ApiConfig {
-  static const String baseUrl = AppConfig.baseUrl;
+  static String get baseUrl => AppConfig.baseUrl;
 
   // Health check (no auth required)
   static const String health = '/health';

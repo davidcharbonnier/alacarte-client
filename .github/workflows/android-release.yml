@@ -62,18 +62,32 @@ jobs:
 
       - name: 🔧 Configure for Pre-release
         run: |
-          echo "🔧 Injecting pre-release configuration..."
-
-          # Inject version
-          sed -i 's/{{APP_VERSION}}/${{ steps.gitversion.outputs.fullSemVer }}/g' lib/config/app_config.dart
-
-          # Inject development configuration (used in debug builds)
-          sed -i "s|{{DEVELOPMENT_API_URL}}|${{ vars.DEVELOPMENT_API_URL }}|g" lib/config/app_config.dart
-          sed -i "s/{{DEVELOPMENT_GOOGLE_CLIENT_ID}}/${{ vars.DEVELOPMENT_GOOGLE_CLIENT_ID }}/g" lib/config/app_config.dart
-
-          # Inject production configuration (needed for compilation but unused in debug mode)
-          sed -i "s|{{PRODUCTION_API_URL}}|${{ vars.PRODUCTION_API_URL }}|g" lib/config/app_config.dart
-          sed -i "s/{{PRODUCTION_GOOGLE_CLIENT_ID}}/${{ vars.PRODUCTION_GOOGLE_CLIENT_ID }}/g" lib/config/app_config.dart
+          echo "🔧 Creating .env configuration for pre-release..."
+          
+          # Validate required secrets/variables
+          if [ -z "${{ vars.DEVELOPMENT_API_URL }}" ]; then
+            echo "❌ ERROR: DEVELOPMENT_API_URL variable is not set"
+            echo "Please set this in Repository Settings → Secrets and Variables → Actions → Variables"
+            exit 1
+          fi
+          
+          if [ -z "${{ vars.DEVELOPMENT_GOOGLE_CLIENT_ID }}" ]; then
+            echo "❌ ERROR: DEVELOPMENT_GOOGLE_CLIENT_ID variable is not set"
+            echo "Please set this in Repository Settings → Secrets and Variables → Actions → Variables"
+            exit 1
+          fi
+          
+          # Create .env file for CI/CD build
+          cat << EOF > .env
+          # CI/CD Generated .env file for pre-release
+          API_BASE_URL=${{ vars.DEVELOPMENT_API_URL }}
+          GOOGLE_CLIENT_ID=${{ vars.DEVELOPMENT_GOOGLE_CLIENT_ID }}
+          APP_VERSION=${{ steps.gitversion.outputs.fullSemVer }}
+          EOF
+          
+          echo "✅ Created .env file with development configuration"
+          echo "📋 .env contents:"
+          cat .env
 
       - name: 📦 Get Flutter dependencies
         run: flutter pub get
@@ -88,8 +102,15 @@ jobs:
           echo "  • Build Number: ${{ github.run_number }}"
           echo "  • Environment: Debug (uses development API)"
           echo ""
-          echo "🔍 Verifying app_config.dart was updated correctly:"
-          grep -n "appVersion\|baseUrl\|googleWebClientId" lib/config/app_config.dart | head -5
+          echo "🔍 Verifying .env file was created correctly:"
+          if [ -f .env ]; then
+            echo "  ✅ .env file exists"
+            echo "  📋 Contents:"
+            cat .env
+          else
+            echo "  ❌ .env file not found!"
+            exit 1
+          fi
 
       - name: 🏗️ Build Debug APK
         run: |
@@ -296,18 +317,32 @@ jobs:
       - name: 🔧 Configure for Production
         if: steps.should_release.outputs.should_release == 'true'
         run: |
-          echo "🔧 Injecting production configuration..."
-
-          # Inject version
-          sed -i 's/{{APP_VERSION}}/${{ steps.gitversion.outputs.semVer }}/g' lib/config/app_config.dart
-
-          # Inject development configuration (needed for compilation but unused in release mode)
-          sed -i "s|{{DEVELOPMENT_API_URL}}|${{ vars.DEVELOPMENT_API_URL }}|g" lib/config/app_config.dart
-          sed -i "s/{{DEVELOPMENT_GOOGLE_CLIENT_ID}}/${{ secrets.DEVELOPMENT_GOOGLE_CLIENT_ID }}/g" lib/config/app_config.dart
-
-          # Inject production configuration (used in release builds)
-          sed -i "s|{{PRODUCTION_API_URL}}|${{ vars.PRODUCTION_API_URL }}|g" lib/config/app_config.dart
-          sed -i "s/{{PRODUCTION_GOOGLE_CLIENT_ID}}/${{ secrets.PRODUCTION_GOOGLE_CLIENT_ID }}/g" lib/config/app_config.dart
+          echo "🔧 Creating .env configuration for production..."
+          
+          # Validate required secrets/variables
+          if [ -z "${{ vars.PRODUCTION_API_URL }}" ]; then
+            echo "❌ ERROR: PRODUCTION_API_URL variable is not set"
+            echo "Please set this in Repository Settings → Secrets and Variables → Actions → Variables"
+            exit 1
+          fi
+          
+          if [ -z "${{ vars.PRODUCTION_GOOGLE_CLIENT_ID }}" ]; then
+            echo "❌ ERROR: PRODUCTION_GOOGLE_CLIENT_ID variable is not set"
+            echo "Please set this in Repository Settings → Secrets and Variables → Actions → Variables"
+            exit 1
+          fi
+          
+          # Create .env file for production build
+          cat << EOF > .env
+          # CI/CD Generated .env file for production
+          API_BASE_URL=${{ vars.PRODUCTION_API_URL }}
+          GOOGLE_CLIENT_ID=${{ vars.PRODUCTION_GOOGLE_CLIENT_ID }}
+          APP_VERSION=${{ steps.gitversion.outputs.semVer }}
+          EOF
+          
+          echo "✅ Created .env file with production configuration"
+          echo "📋 .env contents:"
+          cat .env
 
       - name: 📦 Get Flutter dependencies
         if: steps.should_release.outputs.should_release == 'true'
@@ -325,8 +360,15 @@ jobs:
           echo "  • Build Number: ${{ github.run_number }}"
           echo "  • Environment: Release (uses production API)"
           echo ""
-          echo "🔍 Verifying app_config.dart was updated correctly:"
-          grep -n "appVersion\|baseUrl\|googleWebClientId" lib/config/app_config.dart | head -5
+          echo "🔍 Verifying .env file was created correctly:"
+          if [ -f .env ]; then
+            echo "  ✅ .env file exists"
+            echo "  📋 Contents:"
+            cat .env
+          else
+            echo "  ❌ .env file not found!"
+            exit 1
+          fi
 
       - name: 🏗️ Build Release APK
         if: steps.should_release.outputs.should_release == 'true'

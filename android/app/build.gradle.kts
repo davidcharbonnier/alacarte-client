@@ -39,8 +39,11 @@ android {
     }
 
     signingConfigs {
-        // Debug signing uses default Android debug keystore (automatic)
-        // No configuration needed - Flutter/Android handles this automatically
+        // Debug signing: ALWAYS use default Android debug keystore
+        getByName("debug") {
+            // Explicitly ensure we use the default debug keystore
+            // This overrides any other configuration
+        }
         
         // Release signing uses custom keystore (only if key.properties exists)
         if (keystorePropertiesFile.exists()) {
@@ -55,9 +58,10 @@ android {
 
     buildTypes {
         debug {
-            // Uses default debug signing (automatic Android debug keystore)
-            // No signingConfig needed - this is the default behavior
-            applicationIdSuffix = ".debug"
+            // ALWAYS use default debug signing (never use custom keystore for debug)
+            // This ensures OAuth works with the standard Android debug certificate
+            signingConfig = signingConfigs.getByName("debug")
+            applicationIdSuffix = ".debug"  // Commented out to match OAuth config
             isDebuggable = true
         }
         
