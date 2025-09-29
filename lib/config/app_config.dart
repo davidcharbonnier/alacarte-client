@@ -1,21 +1,20 @@
+import 'package:flutter/foundation.dart';
+
 /// Application configuration settings
 class AppConfig {
-  static const String appName = 'Cheese Rating App';
-  static const String appVersion = '1.0.0';
+  static const String appName = 'A la carte';
+  static const String appVersion = '{{APP_VERSION}}';
 
-  // Environment settings
-  static const bool isDevelopment = false;
+  // API Configuration - all values injected from GitHub secrets/variables
+  static const String baseUrl = kDebugMode
+      ? '{{DEVELOPMENT_API_URL}}'
+      : '{{PRODUCTION_API_URL}}';
 
-  // API Configuration
-  static const String baseUrl = isDevelopment
-      ? 'http://localhost:8080'
-      : 'https://alacarte-api-414358220433.northamerica-northeast1.run.app';
-
-  // Google OAuth Configuration
+  // Google OAuth Configuration - all values injected from GitHub secrets
   // Web client ID - used for both web app and as serverClientId for Android
-  static const String googleWebClientId = isDevelopment
-      ? 'your-dev-web-client-id.apps.googleusercontent.com'
-      : '414358220433-utddgtujirv58gt6g33kb7jei3shih27.apps.googleusercontent.com';
+  static const String googleWebClientId = kDebugMode
+      ? '{{DEVELOPMENT_GOOGLE_CLIENT_ID}}'
+      : '{{PRODUCTION_GOOGLE_CLIENT_ID}}';
 
   // TODO: Add API key management when implemented on backend
   // static const String apiKeyHeaderName = 'Authorization';
