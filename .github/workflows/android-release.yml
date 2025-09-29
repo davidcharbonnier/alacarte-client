@@ -68,12 +68,12 @@ jobs:
           sed -i 's/{{APP_VERSION}}/${{ steps.gitversion.outputs.fullSemVer }}/g' lib/config/app_config.dart
 
           # Inject development configuration (used in debug builds)
-          sed -i "s|{{DEVELOPMENT_API_URL}}|${{ vars.DEVELOPMENT_API_URL }}|g" lib/config/app_config.dart
-          sed -i "s/{{DEVELOPMENT_GOOGLE_CLIENT_ID}}/${{ secrets.DEVELOPMENT_GOOGLE_CLIENT_ID }}/g" lib/config/app_config.dart
+          sed -i "s/{{DEVELOPMENT_API_URL}}/${{ vars.DEVELOPMENT_API_URL }}/g" lib/config/app_config.dart
+          sed -i "s/{{DEVELOPMENT_GOOGLE_CLIENT_ID}}/${{ vars.DEVELOPMENT_GOOGLE_CLIENT_ID }}/g" lib/config/app_config.dart
 
           # Inject production configuration (needed for compilation but unused in debug mode)
-          sed -i "s|{{PRODUCTION_API_URL}}|${{ vars.PRODUCTION_API_URL }}|g" lib/config/app_config.dart
-          sed -i "s/{{PRODUCTION_GOOGLE_CLIENT_ID}}/${{ secrets.PRODUCTION_GOOGLE_CLIENT_ID }}/g" lib/config/app_config.dart
+          sed -i "s/{{PRODUCTION_API_URL}}/${{ vars.PRODUCTION_API_URL }}/g" lib/config/app_config.dart
+          sed -i "s/{{PRODUCTION_GOOGLE_CLIENT_ID}}/${{ vars.PRODUCTION_GOOGLE_CLIENT_ID }}/g" lib/config/app_config.dart
 
       - name: 📦 Get Flutter dependencies
         run: flutter pub get
