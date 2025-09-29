@@ -1,0 +1,454 @@
+name: 📱 Android CI/CD Pipeline
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [master]
+    paths:
+      - 'client/**'
+      - '.github/workflows/android-release.yml'
+  push:
+    branches: [master]
+    paths:
+      - 'client/**'
+      - '.github/workflows/android-release.yml'
+
+env:
+  FLUTTER_VERSION: '3.24.0'
+
+jobs:
+  # Pre-release job for PRs from feat/* and fix/* branches
+  pre-release:
+    if: github.event_name == 'pull_request' && (startsWith(github.head_ref, 'feat/') || startsWith(github.head_ref, 'fix/'))
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: client
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 🏷️ Install GitVersion
+        uses: gittools/actions/gitversion/setup@v0.10.2
+        with:
+          versionSpec: "5.x"
+
+      - name: 🔢 Execute GitVersion
+        uses: gittools/actions/gitversion/execute@v0.10.2
+        id: gitversion
+        with:
+          useConfigFile: true
+          configFilePath: client/GitVersion.yml
+
+      - name: 📋 Display GitVersion outputs
+        run: |
+          echo "📊 GitVersion Results:"
+          echo "  • SemVer: ${{ steps.gitversion.outputs.semVer }}"
+          echo "  • FullSemVer: ${{ steps.gitversion.outputs.fullSemVer }}"
+          echo "  • Major: ${{ steps.gitversion.outputs.major }}"
+          echo "  • Minor: ${{ steps.gitversion.outputs.minor }}"
+          echo "  • Patch: ${{ steps.gitversion.outputs.patch }}"
+          echo "  • PreReleaseTag: ${{ steps.gitversion.outputs.preReleaseTag }}"
+          echo "  • PreReleaseNumber: ${{ steps.gitversion.outputs.preReleaseNumber }}"
+
+      - name: 🐦 Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+
+      - name: ☕ Setup Java 17
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: 🔧 Configure for Pre-release
+        run: |
+          echo "🔧 Injecting pre-release configuration..."
+          
+          # Inject version
+          sed -i 's/{{APP_VERSION}}/${{ steps.gitversion.outputs.fullSemVer }}/g' lib/config/app_config.dart
+          
+          # Inject development configuration (used in debug builds)
+          sed -i "s|{{DEVELOPMENT_API_URL}}|${{ vars.DEVELOPMENT_API_URL }}|g" lib/config/app_config.dart
+          sed -i "s/{{DEVELOPMENT_GOOGLE_CLIENT_ID}}/${{ secrets.DEVELOPMENT_GOOGLE_CLIENT_ID }}/g" lib/config/app_config.dart
+          
+          # Inject production configuration (needed for compilation but unused in debug mode)
+          sed -i "s|{{PRODUCTION_API_URL}}|${{ vars.PRODUCTION_API_URL }}|g" lib/config/app_config.dart
+          sed -i "s/{{PRODUCTION_GOOGLE_CLIENT_ID}}/${{ secrets.PRODUCTION_GOOGLE_CLIENT_ID }}/g" lib/config/app_config.dart
+
+      - name: 📦 Get Flutter dependencies
+        run: flutter pub get
+
+      - name: 🌍 Generate localizations
+        run: flutter gen-l10n
+
+      - name: ✅ Validate Configuration
+        run: |
+          echo "📋 Pre-release Configuration Summary:"
+          echo "  • App Version: ${{ steps.gitversion.outputs.fullSemVer }}"
+          echo "  • Build Number: ${{ github.run_number }}"
+          echo "  • Environment: Debug (uses development API)"
+          echo ""
+          echo "🔍 Verifying app_config.dart was updated correctly:"
+          grep -n "appVersion\|baseUrl\|googleWebClientId" lib/config/app_config.dart | head -5
+
+      - name: 🏗️ Build Debug APK
+        run: |
+          echo "🔨 Building debug APK with default Android debug signing..."
+          flutter build apk --debug \
+            --build-name=${{ steps.gitversion.outputs.fullSemVer }} \
+            --build-number=${{ github.run_number }}
+          
+          echo "✅ Debug APK built successfully using default debug keystore"
+
+      - name: 📱 Get APK info
+        id: apk_info
+        run: |
+          APK_PATH="build/app/outputs/flutter-apk/app-debug.apk"
+          APK_SIZE=$(du -h "$APK_PATH" | cut -f1)
+          echo "apk_path=$APK_PATH" >> $GITHUB_OUTPUT
+          echo "apk_size=$APK_SIZE" >> $GITHUB_OUTPUT
+          echo "apk_name=alacarte-v${{ steps.gitversion.outputs.fullSemVer }}-debug.apk" >> $GITHUB_OUTPUT
+
+      - name: 📝 Generate pre-release changelog
+        id: changelog
+        run: |
+          cat << 'EOF' > changelog.md
+          ## 📱 Pre-release APK v${{ steps.gitversion.outputs.fullSemVer }}
+
+          **Branch**: `${{ github.head_ref }}`  
+          **Base**: `${{ github.event.pull_request.base.ref }}`  
+          **Commit**: `${{ github.event.pull_request.head.sha }}`  
+
+          ### 📦 APK Information
+          - **Size**: ${{ steps.apk_info.outputs.apk_size }}
+          - **Build Type**: Debug (development configuration)
+          - **Min SDK**: API 24 (Android 7.0)
+          - **Target SDK**: API 36
+
+          ### 📋 Changes in this PR
+          EOF
+          
+          # Get commits in this PR
+          git log --pretty=format:"* %s" ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }} >> changelog.md
+          
+          cat << 'EOF' >> changelog.md
+
+          ### 📱 Installation Instructions
+          1. Download the APK file below
+          2. Enable "Install from Unknown Sources" in Android settings
+          3. Install the APK on your Android device
+          4. The app will connect to the development API
+          
+          ### 🔒 Signing Information
+          - **Signing**: Default Android debug keystore (development)
+          - **SHA-1**: Automatic debug certificate
+          - **Distribution**: For testing only (not for production)
+
+          ### 🔗 Links
+          - **Source Branch**: [`${{ github.head_ref }}`](${{ github.event.pull_request.html_url }})
+          - **API Endpoint**: Development server
+
+          ⚠️ **This is a pre-release version for testing purposes**
+          EOF
+
+      - name: 🎉 Create pre-release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.gitversion.outputs.fullSemVer }}
+          name: "🧪 A la carte Android v${{ steps.gitversion.outputs.fullSemVer }} (Pre-release)"
+          body_path: client/changelog.md
+          prerelease: true
+          draft: false
+          files: |
+            client/${{ steps.apk_info.outputs.apk_path }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 💬 Comment on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const version = '${{ steps.gitversion.outputs.fullSemVer }}';
+            const apkSize = '${{ steps.apk_info.outputs.apk_size }}';
+            
+            const body = `## 📱 Pre-release Android APK Ready!
+            
+            **Version**: \`v${version}\`  
+            **Size**: \`${apkSize}\`  
+            **Build Type**: Debug (development configuration)
+            
+            ### 📦 Download & Install
+            1. Download APK from [GitHub Pre-release](https://github.com/${{ github.repository }}/releases/tag/v${version})
+            2. Enable "Install from Unknown Sources" in Android settings
+            3. Install the APK on your device
+            4. App connects to development API automatically
+            
+            ### 🔒 Debug Signing
+            - Uses **default Android debug keystore**
+            - Same SHA-1 as local `flutter run` builds
+            - No custom signing required for development
+            
+            ### 🔄 Auto-Updates
+            > ℹ️ This APK is automatically updated on every push to this PR.
+            
+            ### 🧪 Testing Notes
+            - This is a **debug build** with development configuration
+            - Connects to development API endpoint
+            - Includes debugging symbols (larger file size)
+            - Performance may be slower than release builds`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
+
+  # Production release job for pushes to master
+  release:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: client
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 🏷️ Install GitVersion
+        uses: gittools/actions/gitversion/setup@v0.10.2
+        with:
+          versionSpec: "5.x"
+
+      - name: 🔢 Execute GitVersion
+        uses: gittools/actions/gitversion/execute@v0.10.2
+        id: gitversion
+        with:
+          useConfigFile: true
+          configFilePath: client/GitVersion.yml
+
+      - name: 📋 Display GitVersion outputs
+        run: |
+          echo "📊 GitVersion Results:"
+          echo "  • SemVer: ${{ steps.gitversion.outputs.semVer }}"
+          echo "  • FullSemVer: ${{ steps.gitversion.outputs.fullSemVer }}"
+          echo "  • Major: ${{ steps.gitversion.outputs.major }}"
+          echo "  • Minor: ${{ steps.gitversion.outputs.minor }}"
+          echo "  • Patch: ${{ steps.gitversion.outputs.patch }}"
+
+      - name: 🔍 Check if version should be released
+        id: should_release
+        run: |
+          # Check if this would create a new version
+          CURRENT_VERSION=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo "0.0.0")
+          NEW_VERSION="${{ steps.gitversion.outputs.semVer }}"
+
+          echo "Current version: $CURRENT_VERSION"
+          echo "New version: $NEW_VERSION"
+
+          if [ "$NEW_VERSION" != "$CURRENT_VERSION" ]; then
+            echo "should_release=true" >> $GITHUB_OUTPUT
+            echo "🚀 New version detected: $CURRENT_VERSION → $NEW_VERSION"
+          else
+            echo "should_release=false" >> $GITHUB_OUTPUT
+            echo "ℹ️ No version change detected: $CURRENT_VERSION"
+          fi
+
+      - name: 🏷️ Create and push Git tag
+        if: steps.should_release.outputs.should_release == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a v${{ steps.gitversion.outputs.semVer }} -m "Release v${{ steps.gitversion.outputs.semVer }}"
+          git push origin v${{ steps.gitversion.outputs.semVer }}
+          echo "✅ Created and pushed tag v${{ steps.gitversion.outputs.semVer }}"
+
+      - name: 🐦 Setup Flutter
+        if: steps.should_release.outputs.should_release == 'true'
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+
+      - name: ☕ Setup Java 17
+        if: steps.should_release.outputs.should_release == 'true'
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: 🔐 Setup Android Keystore
+        if: steps.should_release.outputs.should_release == 'true'
+        run: |
+          echo "Setting up Android keystore for release signing..."
+          
+          # Decode keystore from base64
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/release-keystore.jks
+          
+          # Create key.properties file
+          cat << EOF > android/key.properties
+          storePassword=${{ secrets.KEYSTORE_PASSWORD }}
+          keyPassword=${{ secrets.KEY_PASSWORD }}
+          keyAlias=${{ secrets.KEY_ALIAS }}
+          storeFile=release-keystore.jks
+          EOF
+          
+          echo "✅ Keystore configured for release signing"
+
+      - name: 🔧 Configure for Production
+        if: steps.should_release.outputs.should_release == 'true'
+        run: |
+          echo "🔧 Injecting production configuration..."
+          
+          # Inject version
+          sed -i 's/{{APP_VERSION}}/${{ steps.gitversion.outputs.semVer }}/g' lib/config/app_config.dart
+          
+          # Inject development configuration (needed for compilation but unused in release mode)
+          sed -i "s|{{DEVELOPMENT_API_URL}}|${{ vars.DEVELOPMENT_API_URL }}|g" lib/config/app_config.dart
+          sed -i "s/{{DEVELOPMENT_GOOGLE_CLIENT_ID}}/${{ secrets.DEVELOPMENT_GOOGLE_CLIENT_ID }}/g" lib/config/app_config.dart
+          
+          # Inject production configuration (used in release builds)
+          sed -i "s|{{PRODUCTION_API_URL}}|${{ vars.PRODUCTION_API_URL }}|g" lib/config/app_config.dart
+          sed -i "s/{{PRODUCTION_GOOGLE_CLIENT_ID}}/${{ secrets.PRODUCTION_GOOGLE_CLIENT_ID }}/g" lib/config/app_config.dart
+
+      - name: 📦 Get Flutter dependencies
+        if: steps.should_release.outputs.should_release == 'true'
+        run: flutter pub get
+
+      - name: 🌍 Generate localizations
+        if: steps.should_release.outputs.should_release == 'true'
+        run: flutter gen-l10n
+
+      - name: ✅ Validate Configuration
+        if: steps.should_release.outputs.should_release == 'true'
+        run: |
+          echo "📋 Production Configuration Summary:"
+          echo "  • App Version: ${{ steps.gitversion.outputs.semVer }}"
+          echo "  • Build Number: ${{ github.run_number }}"
+          echo "  • Environment: Release (uses production API)"
+          echo ""
+          echo "🔍 Verifying app_config.dart was updated correctly:"
+          grep -n "appVersion\|baseUrl\|googleWebClientId" lib/config/app_config.dart | head -5
+
+      - name: 🏗️ Build Release APK
+        if: steps.should_release.outputs.should_release == 'true'
+        run: |
+          flutter build apk --release \
+            --build-name=${{ steps.gitversion.outputs.semVer }} \
+            --build-number=${{ github.run_number }}
+
+      - name: 📱 Get APK info
+        if: steps.should_release.outputs.should_release == 'true'
+        id: apk_info
+        run: |
+          APK_PATH="build/app/outputs/flutter-apk/app-release.apk"
+          APK_SIZE=$(du -h "$APK_PATH" | cut -f1)
+          echo "apk_path=$APK_PATH" >> $GITHUB_OUTPUT
+          echo "apk_size=$APK_SIZE" >> $GITHUB_OUTPUT
+          echo "apk_name=alacarte-v${{ steps.gitversion.outputs.semVer }}-release.apk" >> $GITHUB_OUTPUT
+
+      - name: 📝 Generate release changelog
+        if: steps.should_release.outputs.should_release == 'true'
+        id: changelog
+        run: |
+          # Get the previous tag for changelog comparison
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+
+          cat << 'EOF' > release_notes.md
+          ## 📱 Android APK Information
+          - **Size**: ${{ steps.apk_info.outputs.apk_size }}
+          - **Build Type**: Release (production configuration)
+          - **Min SDK**: API 24 (Android 7.0)
+          - **Target SDK**: API 36
+
+          ### 📦 Installation Instructions
+          1. Download the APK file below
+          2. Enable "Install from Unknown Sources" in Android settings if needed
+          3. Install the APK on your Android device
+          4. The app will connect to the production API
+
+          ### 🔒 Security Notes
+          - This APK is signed with our release key
+          - Connects to production servers only
+          - Optimized for performance and size
+          
+          EOF
+
+          if [ -n "$PREVIOUS_TAG" ]; then
+            echo "## 📋 What's Changed Since $PREVIOUS_TAG" >> release_notes.md
+            echo "" >> release_notes.md
+            
+            # Group commits by type
+            echo "### 🚀 Features" >> release_notes.md
+            git log ${PREVIOUS_TAG}..HEAD --pretty=format:"* %s (%h)" --grep="^feat:" >> release_notes.md 2>/dev/null || echo "_No new features_" >> release_notes.md
+            echo "" >> release_notes.md
+            echo "" >> release_notes.md
+            
+            echo "### 🐛 Bug Fixes" >> release_notes.md
+            git log ${PREVIOUS_TAG}..HEAD --pretty=format:"* %s (%h)" --grep="^fix:" >> release_notes.md 2>/dev/null || echo "_No bug fixes_" >> release_notes.md
+            echo "" >> release_notes.md
+            echo "" >> release_notes.md
+            
+            echo "### ♻️ Other Changes" >> release_notes.md
+            git log ${PREVIOUS_TAG}..HEAD --pretty=format:"* %s (%h)" --invert-grep --grep="^feat:" --grep="^fix:" >> release_notes.md 2>/dev/null || echo "_No other changes_" >> release_notes.md
+            echo "" >> release_notes.md
+            echo "" >> release_notes.md
+            
+            echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${PREVIOUS_TAG}...v${{ steps.gitversion.outputs.semVer }}" >> release_notes.md
+          else
+            echo "## 🎉 Initial Android Release" >> release_notes.md
+            echo "" >> release_notes.md
+            echo "This is the first Android release of A la carte!" >> release_notes.md
+            echo "" >> release_notes.md
+            echo "### ✨ Features" >> release_notes.md
+            git log --pretty=format:"* %s (%h)" >> release_notes.md
+          fi
+
+      - name: 🎉 Create GitHub Release
+        if: steps.should_release.outputs.should_release == 'true'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.gitversion.outputs.semVer }}
+          name: "🚀 A la carte Android v${{ steps.gitversion.outputs.semVer }}"
+          body_path: client/release_notes.md
+          draft: false
+          prerelease: false
+          files: |
+            client/${{ steps.apk_info.outputs.apk_path }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 📊 Release Summary
+        if: steps.should_release.outputs.should_release == 'true'
+        run: |
+          echo "## 🎉 Android Release Published Successfully!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version**: v${{ steps.gitversion.outputs.semVer }}" >> $GITHUB_STEP_SUMMARY
+          echo "**APK Size**: ${{ steps.apk_info.outputs.apk_size }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Build Type**: Release (production configuration)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Links**:" >> $GITHUB_STEP_SUMMARY
+          echo "- [🎉 GitHub Release](https://github.com/${{ github.repository }}/releases/tag/v${{ steps.gitversion.outputs.semVer }})" >> $GITHUB_STEP_SUMMARY
+          echo "- [📱 Download APK](https://github.com/${{ github.repository }}/releases/download/v${{ steps.gitversion.outputs.semVer }}/${{ steps.apk_info.outputs.apk_name }})" >> $GITHUB_STEP_SUMMARY
+
+      - name: 📊 No Release Summary
+        if: steps.should_release.outputs.should_release != 'true'
+        run: |
+          echo "## ℹ️ No Android Release Created" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "No version change detected. Current version: $(git describe --tags --abbrev=0 2>/dev/null || echo 'none')" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**To trigger a release, use conventional commits:**" >> $GITHUB_STEP_SUMMARY
+          echo "- \`feat: new feature\` → minor version bump" >> $GITHUB_STEP_SUMMARY
+          echo "- \`fix: bug fix\` → patch version bump" >> $GITHUB_STEP_SUMMARY
+          echo "- \`feat!: breaking change\` → major version bump" >> $GITHUB_STEP_SUMMARY
