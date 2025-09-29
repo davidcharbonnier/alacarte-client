@@ -170,34 +170,34 @@ jobs:
           script: |
             const version = '${{ steps.gitversion.outputs.fullSemVer }}';
             const apkSize = '${{ steps.apk_info.outputs.apk_size }}';
-
+            
             const body = `## 📱 Pre-release Android APK Ready!
-
+            
             **Version**: \`v${version}\`  
             **Size**: \`${apkSize}\`  
             **Build Type**: Debug (development configuration)
-
+            
             ### 📦 Download & Install
             1. Download APK from [GitHub Pre-release](https://github.com/${{ github.repository }}/releases/tag/v${version})
             2. Enable "Install from Unknown Sources" in Android settings
             3. Install the APK on your device
             4. App connects to development API automatically
-
+            
             ### 🔒 Debug Signing
             - Uses **default Android debug keystore**
-            - Same SHA-1 as local `flutter run` builds
+            - Same SHA-1 as local flutter run builds
             - No custom signing required for development
-
+            
             ### 🔄 Auto-Updates
             > ℹ️ This APK is automatically updated on every push to this PR.
-
+            
             ### 🧪 Testing Notes
             - This is a **debug build** with development configuration
             - Connects to development API endpoint
             - Includes debugging symbols (larger file size)
             - Performance may be slower than release builds`;
-
-            github.rest.issues.createComment({
+            
+            await github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
