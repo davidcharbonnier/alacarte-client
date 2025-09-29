@@ -1,3 +1,6 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -28,11 +31,47 @@ android {
         multiDexEnabled = true
     }
 
+    // Load release signing configuration only if key.properties exists
+    val keystoreProperties = Properties()
+    val keystorePropertiesFile = rootProject.file("key.properties")
+    if (keystorePropertiesFile.exists()) {
+        keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+    }
+
+    signingConfigs {
+        // Debug signing uses default Android debug keystore (automatic)
+        // No configuration needed - Flutter/Android handles this automatically
+        
+        // Release signing uses custom keystore (only if key.properties exists)
+        if (keystorePropertiesFile.exists()) {
+            create("release") {
+                keyAlias = keystoreProperties["keyAlias"] as String
+                keyPassword = keystoreProperties["keyPassword"] as String
+                storeFile = file(keystoreProperties["storeFile"] as String)
+                storePassword = keystoreProperties["storePassword"] as String
+            }
+        }
+    }
+
     buildTypes {
+        debug {
+            // Uses default debug signing (automatic Android debug keystore)
+            // No signingConfig needed - this is the default behavior
+            applicationIdSuffix = ".debug"
+            isDebuggable = true
+        }
+        
         release {
-            signingConfig = signingConfigs.getByName("debug")
-            isMinifyEnabled = false
-            isShrinkResources = false
+            // Use custom release signing if available, otherwise fall back to debug
+            signingConfig = if (keystorePropertiesFile.exists()) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug") // Fallback for CI without keystore
+            }
+            
+            isMinifyEnabled = true
+            isShrinkResources = true
+            isDebuggable = false
         }
     }
 }

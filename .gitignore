@@ -43,3 +43,10 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Release keystore (keep secure!)
+android/app/release-keystore.jks
+android/key.properties
+
+# Build artifacts that shouldn't be committed
+build/app/outputs/flutter-apk/*.apk
