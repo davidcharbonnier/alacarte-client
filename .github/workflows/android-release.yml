@@ -5,12 +5,12 @@ on:
     types: [opened, synchronize, reopened]
     branches: [master]
     paths:
-      - "client/**"
+      - "**"
       - ".github/workflows/android-release.yml"
   push:
     branches: [master]
     paths:
-      - "client/**"
+      - "**"
       - ".github/workflows/android-release.yml"
 
 env:
@@ -21,9 +21,6 @@ jobs:
   pre-release:
     if: github.event_name == 'pull_request' && (startsWith(github.head_ref, 'feat/') || startsWith(github.head_ref, 'fix/'))
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: client
 
     steps:
       - name: 📥 Checkout code
@@ -159,11 +156,11 @@ jobs:
         with:
           tag_name: v${{ steps.gitversion.outputs.fullSemVer }}
           name: "🧪 A la carte Android v${{ steps.gitversion.outputs.fullSemVer }} (Pre-release)"
-          body_path: client/changelog.md
+          body_path: changelog.md
           prerelease: true
           draft: false
           files: |
-            client/${{ steps.apk_info.outputs.apk_path }}
+            ${{ steps.apk_info.outputs.apk_path }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -211,9 +208,6 @@ jobs:
   release:
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: client
 
     steps:
       - name: 📥 Checkout code
@@ -414,11 +408,11 @@ jobs:
         with:
           tag_name: v${{ steps.gitversion.outputs.semVer }}
           name: "🚀 A la carte Android v${{ steps.gitversion.outputs.semVer }}"
-          body_path: client/release_notes.md
+          body_path: release_notes.md
           draft: false
           prerelease: false
           files: |
-            client/${{ steps.apk_info.outputs.apk_path }}
+            ${{ steps.apk_info.outputs.apk_path }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
