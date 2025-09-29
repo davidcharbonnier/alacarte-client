@@ -5,16 +5,16 @@ on:
     types: [opened, synchronize, reopened]
     branches: [master]
     paths:
-      - 'client/**'
-      - '.github/workflows/android-release.yml'
+      - "client/**"
+      - ".github/workflows/android-release.yml"
   push:
     branches: [master]
     paths:
-      - 'client/**'
-      - '.github/workflows/android-release.yml'
+      - "client/**"
+      - ".github/workflows/android-release.yml"
 
 env:
-  FLUTTER_VERSION: '3.24.0'
+  FLUTTER_VERSION: "3.24.0"
 
 jobs:
   # Pre-release job for PRs from feat/* and fix/* branches
@@ -39,9 +39,6 @@ jobs:
       - name: 🔢 Execute GitVersion
         uses: gittools/actions/gitversion/execute@v0.10.2
         id: gitversion
-        with:
-          useConfigFile: true
-          configFilePath: client/GitVersion.yml
 
       - name: 📋 Display GitVersion outputs
         run: |
@@ -58,25 +55,25 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: 'stable'
+          channel: "stable"
 
       - name: ☕ Setup Java 17
         uses: actions/setup-java@v3
         with:
-          distribution: 'zulu'
-          java-version: '17'
+          distribution: "zulu"
+          java-version: "17"
 
       - name: 🔧 Configure for Pre-release
         run: |
           echo "🔧 Injecting pre-release configuration..."
-          
+
           # Inject version
           sed -i 's/{{APP_VERSION}}/${{ steps.gitversion.outputs.fullSemVer }}/g' lib/config/app_config.dart
-          
+
           # Inject development configuration (used in debug builds)
           sed -i "s|{{DEVELOPMENT_API_URL}}|${{ vars.DEVELOPMENT_API_URL }}|g" lib/config/app_config.dart
           sed -i "s/{{DEVELOPMENT_GOOGLE_CLIENT_ID}}/${{ secrets.DEVELOPMENT_GOOGLE_CLIENT_ID }}/g" lib/config/app_config.dart
-          
+
           # Inject production configuration (needed for compilation but unused in debug mode)
           sed -i "s|{{PRODUCTION_API_URL}}|${{ vars.PRODUCTION_API_URL }}|g" lib/config/app_config.dart
           sed -i "s/{{PRODUCTION_GOOGLE_CLIENT_ID}}/${{ secrets.PRODUCTION_GOOGLE_CLIENT_ID }}/g" lib/config/app_config.dart
@@ -103,7 +100,7 @@ jobs:
           flutter build apk --debug \
             --build-name=${{ steps.gitversion.outputs.fullSemVer }} \
             --build-number=${{ github.run_number }}
-          
+
           echo "✅ Debug APK built successfully using default debug keystore"
 
       - name: 📱 Get APK info
@@ -133,10 +130,10 @@ jobs:
 
           ### 📋 Changes in this PR
           EOF
-          
+
           # Get commits in this PR
           git log --pretty=format:"* %s" ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }} >> changelog.md
-          
+
           cat << 'EOF' >> changelog.md
 
           ### 📱 Installation Instructions
@@ -144,7 +141,7 @@ jobs:
           2. Enable "Install from Unknown Sources" in Android settings
           3. Install the APK on your Android device
           4. The app will connect to the development API
-          
+
           ### 🔒 Signing Information
           - **Signing**: Default Android debug keystore (development)
           - **SHA-1**: Automatic debug certificate
@@ -176,33 +173,33 @@ jobs:
           script: |
             const version = '${{ steps.gitversion.outputs.fullSemVer }}';
             const apkSize = '${{ steps.apk_info.outputs.apk_size }}';
-            
+
             const body = `## 📱 Pre-release Android APK Ready!
-            
+
             **Version**: \`v${version}\`  
             **Size**: \`${apkSize}\`  
             **Build Type**: Debug (development configuration)
-            
+
             ### 📦 Download & Install
             1. Download APK from [GitHub Pre-release](https://github.com/${{ github.repository }}/releases/tag/v${version})
             2. Enable "Install from Unknown Sources" in Android settings
             3. Install the APK on your device
             4. App connects to development API automatically
-            
+
             ### 🔒 Debug Signing
             - Uses **default Android debug keystore**
             - Same SHA-1 as local `flutter run` builds
             - No custom signing required for development
-            
+
             ### 🔄 Auto-Updates
             > ℹ️ This APK is automatically updated on every push to this PR.
-            
+
             ### 🧪 Testing Notes
             - This is a **debug build** with development configuration
             - Connects to development API endpoint
             - Includes debugging symbols (larger file size)
             - Performance may be slower than release builds`;
-            
+
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
@@ -233,9 +230,6 @@ jobs:
       - name: 🔢 Execute GitVersion
         uses: gittools/actions/gitversion/execute@v0.10.2
         id: gitversion
-        with:
-          useConfigFile: true
-          configFilePath: client/GitVersion.yml
 
       - name: 📋 Display GitVersion outputs
         run: |
@@ -278,23 +272,23 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: 'stable'
+          channel: "stable"
 
       - name: ☕ Setup Java 17
         if: steps.should_release.outputs.should_release == 'true'
         uses: actions/setup-java@v3
         with:
-          distribution: 'zulu'
-          java-version: '17'
+          distribution: "zulu"
+          java-version: "17"
 
       - name: 🔐 Setup Android Keystore
         if: steps.should_release.outputs.should_release == 'true'
         run: |
           echo "Setting up Android keystore for release signing..."
-          
+
           # Decode keystore from base64
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/release-keystore.jks
-          
+
           # Create key.properties file
           cat << EOF > android/key.properties
           storePassword=${{ secrets.KEYSTORE_PASSWORD }}
@@ -302,21 +296,21 @@ jobs:
           keyAlias=${{ secrets.KEY_ALIAS }}
           storeFile=release-keystore.jks
           EOF
-          
+
           echo "✅ Keystore configured for release signing"
 
       - name: 🔧 Configure for Production
         if: steps.should_release.outputs.should_release == 'true'
         run: |
           echo "🔧 Injecting production configuration..."
-          
+
           # Inject version
           sed -i 's/{{APP_VERSION}}/${{ steps.gitversion.outputs.semVer }}/g' lib/config/app_config.dart
-          
+
           # Inject development configuration (needed for compilation but unused in release mode)
           sed -i "s|{{DEVELOPMENT_API_URL}}|${{ vars.DEVELOPMENT_API_URL }}|g" lib/config/app_config.dart
           sed -i "s/{{DEVELOPMENT_GOOGLE_CLIENT_ID}}/${{ secrets.DEVELOPMENT_GOOGLE_CLIENT_ID }}/g" lib/config/app_config.dart
-          
+
           # Inject production configuration (used in release builds)
           sed -i "s|{{PRODUCTION_API_URL}}|${{ vars.PRODUCTION_API_URL }}|g" lib/config/app_config.dart
           sed -i "s/{{PRODUCTION_GOOGLE_CLIENT_ID}}/${{ secrets.PRODUCTION_GOOGLE_CLIENT_ID }}/g" lib/config/app_config.dart
@@ -381,7 +375,7 @@ jobs:
           - This APK is signed with our release key
           - Connects to production servers only
           - Optimized for performance and size
-          
+
           EOF
 
           if [ -n "$PREVIOUS_TAG" ]; then
