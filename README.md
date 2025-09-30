@@ -1,5 +1,7 @@
 # A la carte
 
+[![📱 Android CI/CD Pipeline](https://github.com/davidcharbonnier/alacarte-client/actions/workflows/android-release.yml/badge.svg)](https://github.com/davidcharbonnier/alacarte-client/actions/workflows/android-release.yml)
+
 **Your personal rating and preference hub**
 
 A la carte is a sophisticated rating platform designed to help you curate and discover your preferences across various categories. Starting with cheese ratings, the app is built with extensibility in mind to support additional item categories in the future.
@@ -1442,7 +1444,7 @@ French users get a completely localized experience from device detection through
 ## 🛠️ Development Setup
 
 ### **Prerequisites**
-- Flutter 3.24+ with Dart 3.5+ (official installation recommended)
+- Flutter 3.27+ with Dart 3.8+ (official installation recommended)
 - Google Cloud Console project with OAuth clients configured
 - **For Android**: Android Studio with Android SDK 36, NDK 27.0.12077973 + SHA-1 certificate fingerprint
 - **For Desktop**: Linux/macOS/Windows for desktop development
@@ -1465,7 +1467,7 @@ French users get a completely localized experience from device detection through
 1. **Clone the repository**
    ```bash
    git clone <repository-url>
-   cd client
+   cd alacarte-client
    ```
 
 2. **Install dependencies**
@@ -1473,17 +1475,17 @@ French users get a completely localized experience from device detection through
    flutter pub get
    ```
 
-3. **Configure Google OAuth**
-   ```dart
-   // lib/config/app_config.dart
-   static const String googleWebClientId = 'your-web-client-id.apps.googleusercontent.com';
+3. **Configure environment variables**
+   
+   Create a `.env` file in the project root:
+   ```bash
+   # .env - Development configuration (gitignored)
+   API_BASE_URL=https://alacarte-api-414358220433.northamerica-northeast1.run.app
+   GOOGLE_CLIENT_ID=414358220433-utddgtujirv58gt6g33kb7jei3shih27.apps.googleusercontent.com
+   APP_VERSION=1.0.0-dev
    ```
-
-4. **Configure API endpoint**
-   ```dart
-   // lib/config/app_config.dart  
-   static const String baseUrl = 'https://alacarte-api-414358220433.northamerica-northeast1.run.app';
-   ```
+   
+   **Note**: The `.env` file is gitignored and contains your local development configuration. Never commit this file.
 
 4. **Generate localization files (required after updates)**
    ```bash
@@ -1509,9 +1511,9 @@ French users get a completely localized experience from device detection through
 For Android development, additional network configuration is required:
 
 1. **Configure local network access**
-   ```dart
-   // lib/config/app_config.dart
-   static const String baseUrl = 'http://192.168.0.22:8080/api'; // Your computer's IP
+   ```env
+   # Update your .env file with your computer's IP
+   API_BASE_URL=http://192.168.0.22:8080/api
    ```
 
 2. **Ensure backend accepts network connections**
@@ -1527,6 +1529,101 @@ For Android development, additional network configuration is required:
    ```
 
 **See [Android Setup Guide](docs/android-setup.md) for complete configuration details.**
+
+## 🚀 CI/CD Pipeline
+
+A la carte features an automated CI/CD pipeline for Android builds using GitHub Actions:
+
+### **✨ Automated Android Builds**
+
+#### **Pre-release Builds (feat/* and fix/* branches)**
+- **Trigger**: Pull requests from `feat/*` or `fix/*` branches
+- **Output**: Debug APK with development configuration
+- **Signing**: Default Android debug keystore (automatic)
+- **Package**: `com.alacarte.alc_client.debug`
+- **OAuth**: Development Google Cloud project
+- **Distribution**: GitHub pre-release with APK download
+
+#### **Production Builds (master branch)**
+- **Trigger**: Push to master branch
+- **Output**: Signed release APK with production configuration  
+- **Signing**: Custom release keystore (production)
+- **Package**: `com.alacarte.alc_client`
+- **OAuth**: Production Google Cloud project
+- **Distribution**: GitHub release with optimized APK
+
+### **🔧 Environment Configuration**
+
+The CI/CD pipeline uses environment variables for configuration management:
+
+#### **Required GitHub Variables** (non-sensitive):
+```
+DEVELOPMENT_API_URL = https://alacarte-api-414358220433.northamerica-northeast1.run.app
+DEVELOPMENT_GOOGLE_CLIENT_ID = 414358220433-utddgtujirv58gt6g33kb7jei3shih27.apps.googleusercontent.com
+PRODUCTION_API_URL = [your production API URL]
+PRODUCTION_GOOGLE_CLIENT_ID = [your production OAuth client ID]
+```
+
+#### **Required GitHub Secrets** (for production signing):
+```
+KEYSTORE_BASE64 = [base64 encoded release keystore]
+KEYSTORE_PASSWORD = [your keystore password]
+KEY_PASSWORD = [your key password]
+KEY_ALIAS = release
+```
+
+### **🔑 Keystore Setup**
+
+#### **Generate Release Keystore**
+```bash
+cd alacarte-client
+keytool -genkey -v -keystore android/app/release-keystore.jks \
+  -keyalg RSA -keysize 2048 -validity 10000 -alias release
+```
+
+#### **Encode for GitHub Secrets**
+```bash
+base64 -i android/app/release-keystore.jks | tr -d '\n'
+# Copy output and add as KEYSTORE_BASE64 secret
+```
+
+### **⚙️ Version Management**
+
+The pipeline uses GitVersion for semantic versioning:
+
+- **feat: new feature** → Minor version bump (1.0.0 → 1.1.0)
+- **fix: bug fix** → Patch version bump (1.0.0 → 1.0.1)  
+- **feat!: breaking change** → Major version bump (1.0.0 → 2.0.0)
+
+**Pre-release versions** include branch and build number:
+- `v1.2.3-feat-android-workflow.1`
+- `v1.2.4-fix-oauth-issue.2`
+
+### **📦 Build Artifacts**
+
+#### **Pre-release APKs**:
+- Available on GitHub pre-releases
+- Automatic PR comments with download links
+- Debug builds for testing
+- Uses development API and OAuth
+
+#### **Production APKs**:
+- Available on GitHub releases
+- Signed with release keystore
+- Optimized and minified
+- Uses production API and OAuth
+
+### **🏗️ Workflow Features**
+
+- **Automatic versioning** with GitVersion semantic versioning
+- **Environment-specific builds** (debug vs release)
+- **Secure credential management** with GitHub secrets
+- **Comprehensive changelogs** from conventional commits
+- **APK size reporting** in release notes
+- **PR automation** with status comments and download links
+- **Build validation** with configuration checks
+
+**See workflow file**: `.github/workflows/android-release.yml`
 
 ### **Development Workflow**
 
@@ -1772,12 +1869,19 @@ This is currently a personal project, but the architecture is designed for exten
 - **[🌍 Internationalization](docs/internationalization.md)** - French/English localization setup
 - **[🌐 Offline Handling](docs/offline-handling.md)** - Fullscreen offline system with automatic API retry
 - **[📱 Android Setup](docs/android-setup.md)** - Complete Android build configuration and development guide
+- **[🔧 Android OAuth Setup](docs/android-oauth-setup.md)** - Android-specific OAuth configuration
+- **[🔑 Google OAuth Setup](docs/google-oauth-setup.md)** - Complete Google OAuth setup guide
+- **[🚀 CI/CD Pipeline](docs/ci-cd-pipeline.md)** - Automated Android builds with GitHub Actions
 - **[🔄 Router Architecture](docs/router-architecture.md)** - Stable routing patterns and navigation best practices
 - **[🔔 Notification System](docs/notification-system.md)** - Unified notification styles and localization standards
+- **[🛡️ Security Cleanup](docs/security-cleanup.md)** - Security improvements and cleanup tasks
+- **[📝 Recent Improvements](docs/recent-improvements.md)** - Latest features and enhancements
+- **[🔒 OAuth Production Status](docs/oauth-production-status.md)** - Production OAuth implementation status
 
 ### **Developer Guides**
 - **[🏗️ Architecture Overview](#🏗️-architecture-overview)** - Generic design patterns and extensibility
 - **[👨‍💻 Developer Onboarding](#🚀-developer-onboarding-guide)** - Step-by-step development guide
+- **[📝 CI/CD Quick Setup](docs/ci-cd-quick-setup.md)** - Fast track guide for setting up the Android pipeline
 - **[📦 Package Upgrade Planning](docs/package-upgrade-planning.md)** - Dependency management and upgrade strategy
 
 ## 🚀 Future Enhancement Opportunities
@@ -1828,6 +1932,36 @@ This enhancement would significantly improve app performance and offline usabili
 ---
 
 ## Recent Improvements - September 2025
+
+### Android CI/CD Pipeline Implementation
+
+#### **Automated Build System**
+- **GitHub Actions Workflow**: Complete CI/CD pipeline for Android builds
+- **Pre-release Automation**: Automatic debug APK generation for feat/* and fix/* branches
+- **Production Releases**: Signed release APKs for master branch pushes
+- **GitVersion Integration**: Semantic versioning with conventional commits
+- **Environment Configuration**: Dotenv-based configuration with strict validation
+
+#### **Configuration Management**
+- **Dotenv Implementation**: Migrated from compile-time constants to environment variables
+- **Strict Validation**: App fails fast with clear errors if configuration is missing
+- **GitHub Secrets Integration**: Secure credential management for CI/CD
+- **Build-Mode Detection**: Automatic dev/prod selection using kDebugMode
+- **No Fallbacks**: Production-ready configuration without silent defaults
+
+#### **Signing Strategy**
+- **Debug Signing**: Default Android debug keystore for development builds
+- **Release Signing**: Custom release keystore for production distribution
+- **Package Separation**: .debug suffix for development, production package for releases
+- **OAuth Isolation**: Separate OAuth clients for development and production
+- **SHA-1 Management**: Different certificates for different environments
+
+#### **Developer Experience**
+- **Automatic Versioning**: GitVersion handles version bumps automatically
+- **PR Automation**: Automatic comments with APK download links
+- **Clear Documentation**: Comprehensive CI/CD pipeline documentation
+- **Easy Setup**: Simple .env file for local development
+- **Dynamic App Version**: Settings screen shows version from environment variables
 
 ### App Initialization & Performance Enhancements
 
