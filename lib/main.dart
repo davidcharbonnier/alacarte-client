@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:alc_client/flutter_gen/gen_l10n/app_localizations.dart';
 import 'routes/app_router.dart';
 import 'providers/app_provider.dart';
@@ -12,9 +13,12 @@ import 'services/api_service.dart';
 import 'screens/common/fullscreen_offline_screen.dart';
 import 'item_type_registration.dart';
 
-void main() {
+void main() async {
   // Ensure Flutter binding is initialized first
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Load environment variables
+  await dotenv.load(fileName: ".env");
   
   // Initialize rateable item types before running the app
   initializeRateableItemTypes();

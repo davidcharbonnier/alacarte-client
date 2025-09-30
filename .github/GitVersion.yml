@@ -1,0 +1,12 @@
+mode: ContinuousDeployment
+branches:
+  master:
+    mode: ContinuousDeployment
+    increment: Patch
+  feature:
+    mode: ContinuousDeployment
+    increment: Minor
+  pull-request:
+    mode: ContinuousDeployment
+    increment: Inherit
+next-version: 1.0.0

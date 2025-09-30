@@ -1,21 +1,36 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 /// Application configuration settings
 class AppConfig {
-  static const String appName = 'Cheese Rating App';
-  static const String appVersion = '1.0.0';
-
-  // Environment settings
-  static const bool isDevelopment = false;
-
-  // API Configuration
-  static const String baseUrl = isDevelopment
-      ? 'http://localhost:8080'
-      : 'https://alacarte-api-414358220433.northamerica-northeast1.run.app';
-
+  static const String appName = 'A la carte';
+  
+  // Environment-based configuration
+  static String get appVersion {
+    final version = dotenv.env['APP_VERSION'];
+    if (version == null || version.isEmpty) {
+      throw Exception('APP_VERSION environment variable is required but not set');
+    }
+    return version;
+  }
+  
+  // API Configuration - requires environment variables
+  static String get baseUrl {
+    final url = dotenv.env['API_BASE_URL'];
+    if (url == null || url.isEmpty) {
+      throw Exception('API_BASE_URL environment variable is required but not set');
+    }
+    return url;
+  }
+  
   // Google OAuth Configuration
-  // Web client ID - used for both web app and as serverClientId for Android
-  static const String googleWebClientId = isDevelopment
-      ? 'your-dev-web-client-id.apps.googleusercontent.com'
-      : '414358220433-utddgtujirv58gt6g33kb7jei3shih27.apps.googleusercontent.com';
+  static String get googleWebClientId {
+    final clientId = dotenv.env['GOOGLE_CLIENT_ID'];
+    if (clientId == null || clientId.isEmpty) {
+      throw Exception('GOOGLE_CLIENT_ID environment variable is required but not set');
+    }
+    return clientId;
+  }
 
   // TODO: Add API key management when implemented on backend
   // static const String apiKeyHeaderName = 'Authorization';
