@@ -44,6 +44,9 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
+# Kotlin build artifacts
+android/.kotlin/
+
 # Local development configuration (contains sensitive data)
 .env
 
