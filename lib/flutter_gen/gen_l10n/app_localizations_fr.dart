@@ -803,6 +803,11 @@ class AppLocalizationsFr extends AppLocalizations {
   }
 
   @override
+  String searchItemsByName(String itemType) {
+    return 'Rechercher ${itemType}s par nom...';
+  }
+
+  @override
   String get searchByName => 'Rechercher par nom...';
 
   @override

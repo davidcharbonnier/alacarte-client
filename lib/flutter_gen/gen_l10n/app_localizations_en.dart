@@ -790,6 +790,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String searchItemsByName(String itemType) {
+    return 'Search ${itemType}s by name...';
+  }
+
+  @override
   String get searchByName => 'Search by name...';
 
   @override

@@ -1398,6 +1398,17 @@
     }
   },
   
+  "searchItemsByName": "Search {itemType}s by name...",
+  "@searchItemsByName": {
+    "description": "Parameterized search hint for any item type",
+    "placeholders": {
+      "itemType": {
+        "type": "String",
+        "example": "cheese"
+      }
+    }
+  },
+  
   "searchByName": "Search by name...",
   "@searchByName": {
     "description": "Generic search hint for any item type"

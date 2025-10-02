@@ -6,6 +6,19 @@
 
 ---
 
+## ⚠️ CRITICAL: Before Testing
+
+**Run this command to generate localization code:**
+
+```bash
+cd /home/david/perso/alacarte-client
+flutter gen-l10n
+```
+
+**Why:** We added new localization strings that need to be compiled into Dart code. Without this, you'll see errors about undefined methods like `searchItemsByName`.
+
+---
+
 ## 🎯 Session Goals (Original)
 
 1. ✅ Implement missing gin CRUD features

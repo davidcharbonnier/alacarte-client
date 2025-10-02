@@ -198,8 +198,12 @@ class _ItemSearchAndFilterState extends ConsumerState<ItemSearchAndFilter> {
   }
 
   String _getSearchHint() {
-    // Use generic search hint for all item types
-    return context.l10n.searchByName;
+    // Use parameterized search hint with item type
+    final localizedItemType = ItemTypeLocalizer.getLocalizedItemType(
+      context,
+      widget.itemType,
+    );
+    return context.l10n.searchItemsByName(localizedItemType.toLowerCase());
   }
 
   Widget _buildFilterChips() {

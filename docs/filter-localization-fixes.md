@@ -14,7 +14,7 @@ The filter UI had cheese-specific localization strings that wouldn't work proper
 
 ## 📝 Changes Made
 
-### **1. Generic Search Hint**
+### **1. Parameterized Search Hint**
 
 **Before:**
 ```dart
@@ -26,16 +26,28 @@ String _getSearchHint() {
 **After:**
 ```dart
 String _getSearchHint() {
-  // Use generic search hint for all item types
-  return context.l10n.searchByName;
+  // Use parameterized search hint with item type
+  final localizedItemType = ItemTypeLocalizer.getLocalizedItemType(
+    context,
+    widget.itemType,
+  );
+  return context.l10n.searchItemsByName(localizedItemType.toLowerCase());
 }
 ```
 
 **Localization strings added:**
-- EN: `"searchByName": "Search by name..."`
-- FR: `"searchByName": "Rechercher par nom..."`
+- EN: `"searchItemsByName": "Search {itemType}s by name..."`
+- FR: `"searchItemsByName": "Rechercher {itemType}s par nom..."`
 
-**Result:** Search hint now works for cheese, gin, wine, etc.
+**Result:** 
+- Cheese: "Search cheeses by name..." / "Rechercher fromages par nom..."
+- Gin: "Search gins by name..." / "Rechercher gins par nom..."
+- Wine: "Search wines by name..." / "Rechercher vins par nom..."
+
+**Benefits:**
+- Context-specific hints for each item type
+- Professional, clear user experience
+- Follows established parametrized pattern
 
 ---
 
@@ -86,19 +98,19 @@ String _getLocalizedCategoryName(String categoryKey) {
 ## ✅ What Works Now
 
 ### **Cheese Filtering:**
-- ✅ Search: "Search by name..." / "Rechercher par nom..."
+- ✅ Search: "Search cheeses by name..." / "Rechercher fromages par nom..."
 - ✅ Type filter: "Type" / "Type"
 - ✅ Origin filter: "Origin" / "Origine"
 - ✅ Producer filter: "Producer" / "Producteur"
 
 ### **Gin Filtering:**
-- ✅ Search: "Search by name..." / "Rechercher par nom..."
+- ✅ Search: "Search gins by name..." / "Rechercher gins par nom..."
 - ✅ Producer filter: "Producer" / "Producteur"
 - ✅ Origin filter: "Origin" / "Origine"
 - ✅ **Profile filter: "Profile" / "Profil"** ← Now localized!
 
 ### **Future Types (Wine, Beer, Coffee):**
-- ✅ Search hint generic (works immediately)
+- ✅ Search hint parametrized (e.g., "Search wines by name...")
 - ✅ Common filters localized (producer, origin)
 - ✅ Type-specific filters: Add to switch statement as needed
 
@@ -110,7 +122,7 @@ String _getLocalizedCategoryName(String categoryKey) {
 
 | Element | English | French | Generic? |
 |---------|---------|--------|----------|
-| **Search Hint** | "Search by name..." | "Rechercher par nom..." | ✅ Yes |
+| **Search Hint** | "Search {type}s by name..." | "Rechercher {type}s par nom..." | ✅ Parameterized |
 | **Show Filters** | "Show Filters" | "Afficher les Filtres" | ✅ Yes |
 | **Hide Filters** | "Hide Filters" | "Masquer les Filtres" | ✅ Yes |
 | **Clear All Filters** | "Clear All Filters" | "Effacer Tous les Filtres" | ✅ Yes |
@@ -144,7 +156,7 @@ String _getLocalizedCategoryName(String categoryKey) {
 
 ### **Test Gin Filtering (English):**
 1. Navigate to Gin section
-2. ✅ Search bar shows: "Search by name..."
+2. ✅ Search bar shows: "Search gins by name..."
 3. Click filter chips
 4. ✅ "Producer" filter chip
 5. ✅ "Origin" filter chip
@@ -155,7 +167,7 @@ String _getLocalizedCategoryName(String categoryKey) {
 ### **Test Gin Filtering (French):**
 1. Switch language to French
 2. Navigate to Gin section
-3. ✅ Search bar shows: "Rechercher par nom..."
+3. ✅ Search bar shows: "Rechercher gins par nom..."
 4. ✅ "Producteur" filter chip
 5. ✅ "Origine" filter chip
 6. ✅ "Profil" filter chip
@@ -179,7 +191,7 @@ String _getLocalizedCategoryName(String categoryKey) {
 - Gin filtering: Partially broken ⚠️
 
 ### **After:**
-- Search hint: Generic for all types ✅
+- Search hint: Parametrized for all types ✅ ("Search gins by name...")
 - Profile category: Fully localized ✅
 - Gin filtering: Fully functional ✅
 - Future types: Ready to go ✅
@@ -193,9 +205,15 @@ String _getLocalizedCategoryName(String categoryKey) {
 **English (app_en.arb):**
 ```json
 {
-  "searchByName": "Search by name...",
-  "@searchByName": {
-    "description": "Generic search hint for any item type"
+  "searchItemsByName": "Search {itemType}s by name...",
+  "@searchItemsByName": {
+    "description": "Parameterized search hint for any item type",
+    "placeholders": {
+      "itemType": {
+        "type": "String",
+        "example": "cheese"
+      }
+    }
   }
 }
 ```
@@ -203,7 +221,7 @@ String _getLocalizedCategoryName(String categoryKey) {
 **French (app_fr.arb):**
 ```json
 {
-  "searchByName": "Rechercher par nom..."
+  "searchItemsByName": "Rechercher {itemType}s par nom..."
 }
 ```
 
@@ -211,10 +229,10 @@ String _getLocalizedCategoryName(String categoryKey) {
 
 **File:** `lib/widgets/common/item_search_filter.dart`
 
-1. **_getSearchHint()** - Now uses generic `searchByName`
+1. **_getSearchHint()** - Now uses parametrized `searchItemsByName` with item type
 2. **_getLocalizedCategoryName()** - Added `profile` case using existing `profileLabel`
 
-**Total changes:** 2 small edits
+**Total changes:** 2 methods updated
 
 ---
 

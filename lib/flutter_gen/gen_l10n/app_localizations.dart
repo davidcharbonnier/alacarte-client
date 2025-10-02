@@ -1364,6 +1364,12 @@ abstract class AppLocalizations {
   /// **'Showing {filtered} of {total} items'**
   String showingResults(int filtered, int total);
 
+  /// Parameterized search hint for any item type
+  ///
+  /// In en, this message translates to:
+  /// **'Search {itemType}s by name...'**
+  String searchItemsByName(String itemType);
+
   /// Generic search hint for any item type
   ///
   /// In en, this message translates to:
