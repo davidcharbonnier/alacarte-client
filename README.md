@@ -265,6 +265,76 @@ static Future<void> _handleConnectivityChange(results) async {
 - **Efficient Monitoring**: Only check server when platform indicates network changes
 - **Resource Conservation**: No constant polling or redundant validation
 
+### **📊 Community Statistics Caching (October 2025)**
+
+#### **Riverpod Provider-Based Caching**
+```dart
+// Community stats provider with automatic caching
+final communityStatsProvider = FutureProvider.family<Map<String, dynamic>, CommunityStatsParams>(
+  (ref, params) async {
+    final apiService = ref.watch(apiServiceProvider);
+    final response = await apiService.getCommunityStats(params.itemType, params.itemId);
+    
+    // Direct type checking pattern (documented best practice)
+    if (response is ApiSuccess<Map<String, dynamic>>) {
+      return response.data;
+    } else if (response is ApiError<Map<String, dynamic>>) {
+      throw Exception('Failed to load community stats: ${response.message}');
+    }
+    
+    throw Exception('Unexpected loading state');
+  },
+);
+```
+
+#### **Implementation Benefits**
+- **Zero Duplicate API Calls**: Riverpod caches results per (itemType, itemId) pair automatically
+- **Eliminated FutureBuilder Anti-Pattern**: No more futures recreated on every rebuild
+- **Automatic Cache Management**: Provider handles caching and lifecycle
+- **Manual Invalidation**: `ref.invalidate(communityStatsProvider)` clears cache on refresh
+- **Reusable Across App**: Same provider used in item lists and detail screens
+- **Proper Error Handling**: AsyncValue handles loading/error/data states
+
+#### **Performance Impact**
+- **Before**: N API calls per scroll (FutureBuilder recreated futures)
+- **After**: 1 API call per unique item (provider caches results)
+- **Cache Lifetime**: Persists across navigation within app session
+- **Cache Invalidation**: Only on explicit pull-to-refresh
+
+#### **Architecture Pattern**
+```dart
+// Item List Screen
+Widget _buildCommunityRatingsSummary(int itemId) {
+  final statsAsync = ref.watch(
+    communityStatsProvider(
+      CommunityStatsParams(itemType: widget.itemType, itemId: itemId),
+    ),
+  );
+  
+  return statsAsync.when(
+    data: (stats) => _buildBadge(stats.totalRatings, stats.averageRating),
+    loading: () => _buildLoadingBadge(),
+    error: (e, s) => _buildErrorBadge(),
+  );
+}
+
+// Item Detail Screen - RatingSummaryCard
+final statsAsync = ref.watch(
+  communityStatsProvider(
+    CommunityStatsParams(itemType: itemType, itemId: item.id!),
+  ),
+);
+```
+
+#### **Extension Helper**
+```dart
+// Convenient extension for accessing stats
+extension CommunityStatsExtension on Map<String, dynamic> {
+  int get totalRatings => (this['total_ratings'] as int?) ?? 0;
+  double get averageRating => (this['average_rating'] as num?)?.toDouble() ?? 0.0;
+}
+```
+
 ### **📊 Performance Metrics**
 
 #### **Before Optimizations**
@@ -278,19 +348,21 @@ static Future<void> _handleConnectivityChange(results) async {
 - Connectivity checks: 1 debounced health check
 - Form validation: Real-time button state updates
 - Loading time: ~600ms average startup
+- Community stats: 1 API call per unique item (provider-cached)
 
 #### **User Experience Improvements**
 - **50% faster startup**: Reduced average initialization time
 - **Zero duplicate requests**: Eliminated redundant network traffic
 - **Responsive forms**: Immediate validation feedback
 - **Professional loading**: Smooth transitions without UI flashes
+- **Efficient community stats**: No duplicate API calls on scroll/rebuild
 
 ### **🔧 Future Enhancement Opportunities**
 
 #### **Advanced Caching Strategy**
-- **Offline Persistence**: Extend caching to SharedPreferences/SQLite
-- **Batch Loading**: Single API call for all community ratings per item type
-- **Intelligent Refresh**: Smart cache invalidation based on user actions
+- **Offline Persistence**: Extend community stats caching to SharedPreferences/SQLite for offline viewing
+- **Batch Loading**: Single API call for all community stats per item type (further optimization)
+- **Intelligent Refresh**: Smart cache invalidation based on user actions (e.g., after rating)
 - **Progressive Loading**: Critical data first, supplementary data second
 
 #### **Real-Time Features**
@@ -480,7 +552,9 @@ AppInitializationProvider:
 
 ### **Adding a New Item Type: Step-by-Step**
 
-#### **Step 1: Create the Model (5 minutes)**
+**UPDATED October 2025:** After the ItemProviderHelper refactoring, this process is dramatically simpler!
+
+#### **Step 1: Create the Model (10 minutes)**
 ```dart
 // lib/models/new_category_item.dart
 class NewCategoryItem implements RateableItem {
@@ -1009,6 +1083,7 @@ A la carte includes a comprehensive connectivity monitoring system to ensure use
 - **Item CRUD Operations** - Create and edit cheese entries with inline form design and full validation
 - **Advanced Sharing System** - Share/unshare ratings with users who completed their profiles
 - **Enhanced Sharing Dialog** - Clean interface with complete profile filtering
+- **Community Statistics Caching** - Riverpod provider-based caching eliminates duplicate API calls
 - **Optimized Community Statistics** - Single API endpoint for anonymous aggregate rating data
 - **Advanced Search & Filtering System** - Comprehensive filtering with mobile-optimized collapsible interface
 - **Context-Aware Filtering** - Different filter types per tab (discovery vs personal list management)
@@ -1025,7 +1100,6 @@ A la carte includes a comprehensive connectivity monitoring system to ensure use
 - **Production OAuth Deployment** - Migrate from mock OAuth to production Google OAuth
 - **Enhanced Privacy Controls** - Advanced sharing permissions and audit trails
 - **Item Deletion** - Delete cheese entries with proper validation and safety checks
-- **Performance Optimization** - Implement caching for community ratings to reduce API calls
 - **Quick Sharing Actions** - One-click sharing buttons directly in item lists
 - **Sharing Status Indicators** - Visual indicators showing which ratings are shared/private
 
@@ -1770,8 +1844,8 @@ flutter build apk --release
 ### **📋 Future Features**
 
 #### **Core Platform Enhancements**
+- ✅ **Community Stats Caching** - Riverpod provider eliminates duplicate API calls with automatic caching
 - 📋 **Item Deletion** - Delete cheese entries with proper validation and safety checks
-- 📋 **Performance Optimization** - Caching for community ratings to reduce API calls
 - 📋 **Enhanced Offline Support** - Local data persistence and sync capabilities
 - 📋 **Real-time Updates** - WebSocket integration for live data updates
 
@@ -1886,18 +1960,18 @@ This is currently a personal project, but the architecture is designed for exten
 
 ## 🚀 Future Enhancement Opportunities
 
-### **Performance Optimization - Community Rating Caching**
-The current implementation loads community ratings via individual API calls per item. Future enhancements could include:
+### **Performance Optimization - Advanced Caching**
+The current implementation includes efficient provider-based caching for community statistics. Future enhancements could include:
 
 **Batch Loading Strategy:**
-- Single API call to load all community ratings for an item type
-- Provider-level caching with TTL (5-10 minutes)
-- Offline persistence using SharedPreferences or SQLite
+- Single API call to load all community ratings for an item type (currently stats only)
+- Extended TTL caching with offline persistence
+- SQLite-based local storage for complete offline support
 - Manual refresh controls for users
 
 **Implementation Approach:**
 ```dart
-// Enhanced RatingProvider with caching
+// Enhanced RatingProvider with full offline persistence
 class RatingState {
   final Map<String, Map<int, List<Rating>>> communityRatingsCache;
   final Map<String, DateTime> cacheTimestamps;
@@ -1917,21 +1991,51 @@ class OfflineCache {
 ```
 
 **Benefits:**
-- Reduced API calls: N → 1 per item type
-- Offline functionality: Browse items and ratings without connectivity
-- Better performance: Instant display from cache
-- User control: Manual refresh when desired
+- Complete offline functionality for browsing
+- Instant display from persistent cache
+- User control over data freshness
+- Reduced network usage
 
 **Data Caching Priorities:**
-1. **High Priority**: Cheese items list, user's personal ratings
-2. **Medium Priority**: Community rating summaries, recently viewed items
-3. **Low Priority**: Shared ratings, rating statistics
+1. **High Priority**: Item lists, user's personal ratings
+2. **Medium Priority**: Individual rating details, recently viewed items
+3. **Low Priority**: Shared ratings, extended statistics
 
-This enhancement would significantly improve app performance and offline usability while maintaining the current clean architecture.
+This enhancement would provide complete offline browsing capabilities while maintaining the current clean architecture.
 
 ---
 
 ## Recent Improvements - September 2025
+
+### Community Stats Provider Implementation (October 2025)
+
+#### **Riverpod Provider Architecture**
+- **FutureProvider.family Pattern**: Proper state management for community statistics
+- **Automatic Caching**: Stats cached per (itemType, itemId) pair throughout app session
+- **Eliminated FutureBuilder Anti-pattern**: Replaced problematic FutureBuilder with provider
+- **Direct Type Checking**: Uses documented ApiResponse pattern for type safety
+- **Cache Invalidation**: Simple `ref.invalidate()` on pull-to-refresh
+
+#### **Performance Improvements**
+- **Zero Duplicate API Calls**: Provider caches results automatically on scroll/rebuild
+- **App-wide Availability**: Stats accessible from any widget via provider
+- **Efficient State Management**: AsyncValue handles loading/error/data states
+- **Reduced Code Complexity**: Eliminated ~40 lines of FutureBuilder boilerplate per usage
+- **Better UX**: No flickering or repeated loading states
+
+#### **Technical Implementation**
+- **Provider Location**: `lib/providers/community_stats_provider.dart`
+- **Widget Updates**: `RatingSummaryCard` converted to ConsumerWidget
+- **Screen Updates**: Both item list and detail screens use provider
+- **Extension Methods**: Convenient accessors for stats data (totalRatings, averageRating)
+- **Type Safety**: CommunityStatsParams class ensures proper provider family usage
+
+#### **Developer Benefits**
+- **Reusable Pattern**: Provider can be accessed from any screen
+- **Clean Architecture**: Separation of data fetching from UI
+- **Easy Testing**: Provider can be mocked for widget tests
+- **Documented Pattern**: Follows ApiResponse direct type checking best practice
+- **Scalable Design**: Ready for additional stat types without refactoring
 
 ### Android CI/CD Pipeline Implementation
 

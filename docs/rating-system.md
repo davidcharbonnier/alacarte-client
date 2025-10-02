@@ -86,19 +86,44 @@ The A la carte rating system enables users to create, edit, share, and manage ra
 
 #### Community Statistics Display
 **Location**: `lib/widgets/items/rating_summary_card.dart`
+**Provider**: `lib/providers/community_stats_provider.dart`
 
 **Enhanced Implementation**:
 - Single-purpose widget for community statistics display
-- Optimized data source using `/api/stats/community/:type/:id` endpoint
+- **Riverpod Provider Architecture**: Uses `FutureProvider.family` for efficient caching
+- **Automatic Caching**: Stats cached per (itemType, itemId) pair - no duplicate API calls
+- **Optimized data source**: Uses `/api/stats/community/:type/:id` endpoint
 - Clean, original design maintained from previous implementation
-- Efficient loading states and error handling
+- Efficient loading states and error handling with AsyncValue
 - Anonymous aggregate data without privacy violations
 
 **Performance Benefits**:
-- **Reduced API calls**: Single endpoint call instead of loading all individual ratings
+- **Eliminated Duplicate API Calls**: FutureBuilder anti-pattern replaced with proper provider caching
+- **Single API call per item**: Provider caches results throughout app session
 - **Faster loading**: Aggregate statistics computed server-side
 - **Improved privacy**: No individual rating data exposure
 - **Better UX**: Consistent loading states and error handling
+- **App-wide availability**: Stats accessible from any widget via provider
+
+**Provider Architecture**:
+```dart
+// Community stats provider with automatic caching
+final communityStatsProvider = FutureProvider.family<Map<String, dynamic>, CommunityStatsParams>(
+  (ref, params) async {
+    final apiService = ref.watch(apiServiceProvider);
+    final response = await apiService.getCommunityStats(params.itemType, params.itemId);
+
+    // Use direct type checking as documented in README
+    if (response is ApiSuccess<Map<String, dynamic>>) {
+      return response.data;
+    } else if (response is ApiError<Map<String, dynamic>>) {
+      throw Exception('Failed to load community stats: ${response.message}');
+    }
+    
+    throw Exception('Unexpected loading state');
+  },
+);
+```
 
 **Data Structure**:
 ```dart
@@ -109,15 +134,24 @@ The A la carte rating system enables users to create, edit, share, and manage ra
   "item_type": "cheese",
   "item_id": 123
 }
+
+// Convenient extension methods
+stats.totalRatings  // int
+stats.averageRating // double
 ```
 
 **Widget Usage**:
 ```dart
 RatingSummaryCard(
   item: cheeseItem,
-  communityStats: statsFromBackend,
-  isLoading: false,
+  itemType: 'cheese', // Provider fetches stats automatically
 )
+```
+
+**Cache Invalidation**:
+```dart
+// On pull-to-refresh or data updates
+ref.invalidate(communityStatsProvider); // Clears all cached stats
 ```
 
 #### SharedRatingsList (Recommendations)
