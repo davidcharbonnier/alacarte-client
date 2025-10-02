@@ -1514,12 +1514,17 @@ French users get a completely localized experience from device detection through
    
    **Note**: The `.env` file is gitignored and contains your local development configuration. Never commit this file.
 
-4. **Generate localization files (required after updates)**
+4. **Generate localization files**
    ```bash
    flutter gen-l10n
    ```
    
-   **Note**: Run this command whenever you add new localization keys to the .arb files. The app uses over 400 localized strings including loading screen messages, form validation, and contextual status indicators.
+   **Important**: Always run this command after:
+   - Cloning the repository for the first time
+   - Pulling updates that modify .arb files
+   - Adding new localization keys yourself
+   
+   The app uses 400+ localized strings (loading messages, form validation, status indicators, etc.) and won't compile without generated localization files.
 
 5. **Run the development server**
    ```bash
