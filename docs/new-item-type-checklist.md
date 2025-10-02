@@ -215,6 +215,34 @@ Add `case 'wine':` to **ALL 15 methods:**
 - [ ] `flutter gen-l10n` executed
 - [ ] No errors
 
+**⚠️ CRITICAL: Update ItemTypeLocalizer**
+
+**File:** `lib/utils/localization_utils.dart`
+
+Add wine case to `getLocalizedItemType()` method:
+
+```dart
+switch (itemType.toLowerCase()) {
+  case 'cheese':
+    return l10n.cheese;
+  case 'gin':
+    return l10n.gin;
+  case 'wine':  // ← ADD THIS!
+    return l10n.wine;
+  default:
+    return itemType.isNotEmpty
+        ? '${itemType[0].toUpperCase()}${itemType.substring(1)}'
+        : itemType;
+}
+```
+
+**Why this matters:**
+- Without this, search hints show wrong item type
+- Ensures proper localization in all languages
+- Required for tab titles, buttons, and all UI text
+
+- [ ] Wine case added to ItemTypeLocalizer.getLocalizedItemType()
+
 ---
 
 ## ✅ Testing Checklist (~10 min)
@@ -306,6 +334,12 @@ Your new item type is complete when:
 
 **Forms show wrong fields**
 → Verify field keys in strategy match your WineItem properties
+
+**Search hints showing wrong item type (always shows "cheese" or capitalized type)**
+→ Did you add the new item type case to `ItemTypeLocalizer.getLocalizedItemType()` in `localization_utils.dart`?
+
+**Item type not properly localized in French**
+→ Add the case to `ItemTypeLocalizer.getLocalizedItemType()` - without it, French users see English names
 
 ---
 

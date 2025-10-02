@@ -235,7 +235,33 @@ Follow the detailed steps in: **[Checklist - Steps 7-13](new-item-type-checklist
 - Step 10: Update ItemTypeHelper (icon, color, supported list)
 - Step 11: Add to home screen
 - Step 12: Add to item type switcher
-- Step 13: Add localization strings
+- Step 13: Add localization strings + **Update ItemTypeLocalizer** ⚠️
+
+**⚠️ CRITICAL in Step 13:**
+
+After adding localization strings, you **MUST** update `ItemTypeLocalizer.getLocalizedItemType()` in `lib/utils/localization_utils.dart`:
+
+```dart
+switch (itemType.toLowerCase()) {
+  case 'cheese':
+    return l10n.cheese;
+  case 'gin':
+    return l10n.gin;
+  case 'wine':  // ← ADD YOUR NEW ITEM TYPE!
+    return l10n.wine;
+  default:
+    return itemType.isNotEmpty
+        ? '${itemType[0].toUpperCase()}${itemType.substring(1)}'
+        : itemType;
+}
+```
+
+**Why this is critical:**
+- Without this, search hints will show the wrong item type in all languages
+- Tab titles, buttons, and all UI text will not be properly localized
+- French users will see English item type names
+
+See: **[Checklist Step 13](new-item-type-checklist.md#13-add-localization-5-min)** for complete details.
 
 ---
 
