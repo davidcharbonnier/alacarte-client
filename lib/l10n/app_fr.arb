@@ -218,6 +218,7 @@
   "clearAllFilters": "Effacer Tous les Filtres",
   "filterBy": "Filtrer par {category}",
   "showingResults": "Affichage de {filtered} sur {total} articles",
+  "searchByName": "Rechercher par nom...",
   "searchCheeseByNameHint": "Rechercher fromages par nom...",
   "myRatingsFilter": "Mes Évaluations",
   "recommendationsFilter": "Recommandations",

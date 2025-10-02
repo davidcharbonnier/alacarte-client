@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/auth_provider.dart';
-import '../../providers/item_provider.dart';
 import '../../providers/rating_provider.dart';
 import '../../models/rating.dart';
 import '../../utils/constants.dart';
 import '../../utils/localization_utils.dart';
 import '../../utils/safe_navigation.dart';
+import '../../utils/item_provider_helper.dart';
+import '../../models/rateable_item.dart' as rateable;
 import '../../widgets/forms/form_scaffold.dart';
 import '../../widgets/forms/star_rating_input.dart';
 
@@ -306,21 +307,24 @@ class _RatingEditScreenState extends ConsumerState<RatingEditScreen> {
   }
 
   Widget _buildRatingContextCard() {
-    // Get the actual item name instead of using rating's displayTitle
+    // Get the actual item name using ItemProviderHelper (works for any item type)
     String itemDisplayName = 'Unknown Item';
 
-    if (_existingRating!.itemType == 'cheese') {
-      // Look up the cheese item from the provider
-      final cheeseItems = ref.read(cheeseItemProvider).items;
-      final cheeseItem = cheeseItems
-          .where((item) => item.id == _existingRating!.itemId)
-          .firstOrNull;
-      if (cheeseItem != null) {
-        itemDisplayName = cheeseItem.name;
-      } else {
-        // Fallback to ID if item not found in cache
-        itemDisplayName = 'Cheese #${_existingRating!.itemId}';
-      }
+    // Try to get item from cache/provider
+    final items = ItemProviderHelper.getItems(ref, _existingRating!.itemType);
+    final item = items
+        .where((item) => item.id == _existingRating!.itemId)
+        .firstOrNull;
+    
+    if (item != null) {
+      itemDisplayName = item.name;
+    } else {
+      // Fallback to item type + ID if not found in cache
+      final localizedType = ItemTypeLocalizer.getLocalizedItemType(
+        context,
+        _existingRating!.itemType,
+      );
+      itemDisplayName = '$localizedType #${_existingRating!.itemId}';
     }
 
     return Card(

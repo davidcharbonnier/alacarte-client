@@ -803,6 +803,9 @@ class AppLocalizationsFr extends AppLocalizations {
   }
 
   @override
+  String get searchByName => 'Rechercher par nom...';
+
+  @override
   String get searchCheeseByNameHint => 'Rechercher fromages par nom...';
 
   @override

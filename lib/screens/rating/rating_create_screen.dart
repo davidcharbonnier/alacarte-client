@@ -1,15 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/auth_provider.dart';
-import '../../providers/item_provider.dart';
 import '../../providers/rating_provider.dart';
-import '../../services/item_service.dart';
 import '../../models/rateable_item.dart';
-import '../../models/cheese_item.dart';
-import '../../models/api_response.dart';
 import '../../utils/constants.dart';
 import '../../utils/localization_utils.dart';
 import '../../utils/safe_navigation.dart';
+import '../../utils/item_provider_helper.dart';
+import '../../models/rateable_item.dart' as rateable;
 import '../../widgets/forms/form_scaffold.dart';
 import '../../widgets/forms/star_rating_input.dart';
 
@@ -49,43 +47,24 @@ class _RatingCreateScreenState extends ConsumerState<RatingCreateScreen> {
   }
 
   Future<void> _loadItemData() async {
-    if (widget.itemType != 'cheese') {
-      setState(() {
-        _loadError = context.l10n.itemTypeNotSupported;
-        _isLoadingItem = false;
-      });
-      return;
-    }
-
     setState(() {
       _isLoadingItem = true;
       _loadError = null;
     });
 
     try {
-      // First check if item is in cache
-      final cheeseItemState = ref.read(cheeseItemProvider);
-      _item = cheeseItemState.items
-          .where((item) => item.id == widget.itemId)
-          .firstOrNull;
+      // Use ItemProviderHelper to load item data (works for any item type)
+      _item = await ItemProviderHelper.getItemById(
+        ref,
+        widget.itemType,
+        widget.itemId,
+      );
 
-      // If not in cache, load from API
       if (_item == null) {
-        final service = ref.read(cheeseItemServiceProvider);
-        final response = await service.getItemById(widget.itemId);
-
-        response.when(
-          success: (item, message) {
-            _item = item;
-          },
-          error: (message, statusCode, errorCode, details) {
-            _loadError = message;
-          },
-          loading: () {
-            // This shouldn't happen for completed async calls
-          },
-        );
+        _loadError = context.l10n.itemNotFound;
       }
+    } catch (e) {
+      _loadError = e.toString();
     } finally {
       if (mounted) {
         setState(() {
@@ -292,13 +271,14 @@ class _RatingCreateScreenState extends ConsumerState<RatingCreateScreen> {
             Container(
               padding: const EdgeInsets.all(AppConstants.spacingM),
               decoration: BoxDecoration(
-                color: AppConstants.primaryColor.withOpacity(0.1),
+                color: rateable.ItemTypeHelper.getItemTypeColor(widget.itemType)
+                    .withOpacity(0.1),
                 borderRadius: BorderRadius.circular(AppConstants.radiusL),
               ),
               child: Icon(
-                Icons.local_pizza, // TODO: Use ItemTypeHelper when available
+                rateable.ItemTypeHelper.getItemTypeIcon(widget.itemType),
                 size: AppConstants.iconL,
-                color: AppConstants.primaryColor,
+                color: rateable.ItemTypeHelper.getItemTypeColor(widget.itemType),
               ),
             ),
 
@@ -316,16 +296,14 @@ class _RatingCreateScreenState extends ConsumerState<RatingCreateScreen> {
                     ),
                   ),
                   const SizedBox(height: AppConstants.spacingXS),
-                  if (_item is CheeseItem) ...[
-                    Text(
-                      '${(_item as CheeseItem).type} • ${(_item as CheeseItem).origin}',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.onSurface.withOpacity(0.7),
-                      ),
+                  Text(
+                    _item!.displaySubtitle,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withOpacity(0.7),
                     ),
-                  ],
+                  ),
                 ],
               ),
             ),

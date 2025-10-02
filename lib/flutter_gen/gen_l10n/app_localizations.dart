@@ -1364,6 +1364,12 @@ abstract class AppLocalizations {
   /// **'Showing {filtered} of {total} items'**
   String showingResults(int filtered, int total);
 
+  /// Generic search hint for any item type
+  ///
+  /// In en, this message translates to:
+  /// **'Search by name...'**
+  String get searchByName;
+
   /// Hint text for name-only cheese search field
   ///
   /// In en, this message translates to:
@@ -2282,10 +2288,10 @@ abstract class AppLocalizations {
   /// **'Filter by origin'**
   String get filterByOrigin;
 
-  /// Filter by flavor profile option
+  /// Filter by flavor profile option for gin
   ///
   /// In en, this message translates to:
-  /// **'Filter by profile'**
+  /// **'Filter by flavor profile'**
   String get filterByProfile;
 
   /// Message when no gins match search/filter

@@ -1398,6 +1398,11 @@
     }
   },
   
+  "searchByName": "Search by name...",
+  "@searchByName": {
+    "description": "Generic search hint for any item type"
+  },
+  
   "searchCheeseByNameHint": "Search cheeses by name...",
   "@searchCheeseByNameHint": {
     "description": "Hint text for name-only cheese search field"
@@ -2242,9 +2247,9 @@
     "description": "Filter by origin option"
   },
   
-  "filterByProfile": "Filter by profile",
+  "filterByProfile": "Filter by flavor profile",
   "@filterByProfile": {
-    "description": "Filter by flavor profile option"
+    "description": "Filter by flavor profile option for gin"
   },
   
   "noGinsFound": "No gins found",

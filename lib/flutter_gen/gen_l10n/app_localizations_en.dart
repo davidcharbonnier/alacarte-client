@@ -790,6 +790,9 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get searchByName => 'Search by name...';
+
+  @override
   String get searchCheeseByNameHint => 'Search cheeses by name...';
 
   @override
@@ -1343,7 +1346,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get filterByOrigin => 'Filter by origin';
 
   @override
-  String get filterByProfile => 'Filter by profile';
+  String get filterByProfile => 'Filter by flavor profile';
 
   @override
   String get noGinsFound => 'No gins found';

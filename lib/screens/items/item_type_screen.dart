@@ -148,8 +148,8 @@ class _ItemTypeScreenState extends ConsumerState<ItemTypeScreen>
       ),
       body: Column(
         children: [
-          // Search and filter interface
-          if (widget.itemType == 'cheese') _buildSearchAndFilter(),
+          // Search and filter interface (works for all item types)
+          _buildSearchAndFilter(),
 
           // Main content
           Expanded(
@@ -1151,14 +1151,12 @@ class _ItemTypeScreenState extends ConsumerState<ItemTypeScreen>
   }
 
   Widget _buildSearchAndFilter() {
-    if (widget.itemType != 'cheese') return const SizedBox.shrink();
-
     final allItems = ItemProviderHelper.getItems(ref, widget.itemType);
     final activeFilters = ItemProviderHelper.getActiveFilters(ref, widget.itemType);
     final searchQuery = ItemProviderHelper.getSearchQuery(ref, widget.itemType);
     final ratingState = ref.watch(ratingProvider);
 
-    // Get available filter options
+    // Get available filter options for this item type
     final availableFilters = ItemFilterHelper.getAvailableFilters(
       allItems,
       widget.itemType,

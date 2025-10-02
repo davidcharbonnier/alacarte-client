@@ -213,4 +213,23 @@ class ItemProviderHelper {
         return null;
     }
   }
+
+  /// Load specific items by IDs (for filling cache gaps)
+  static Future<void> loadSpecificItems(
+    WidgetRef ref,
+    String itemType,
+    List<int> itemIds,
+  ) async {
+    switch (itemType.toLowerCase()) {
+      case 'cheese':
+        await ref.read(cheeseItemProvider.notifier).loadSpecificItems(itemIds);
+        break;
+      case 'gin':
+        await ref.read(ginItemProvider.notifier).loadSpecificItems(itemIds);
+        break;
+      default:
+        // Unknown item type - skip loading
+        break;
+    }
+  }
 }

@@ -198,7 +198,8 @@ class _ItemSearchAndFilterState extends ConsumerState<ItemSearchAndFilter> {
   }
 
   String _getSearchHint() {
-    return context.l10n.searchCheeseByNameHint;
+    // Use generic search hint for all item types
+    return context.l10n.searchByName;
   }
 
   Widget _buildFilterChips() {
@@ -302,6 +303,8 @@ class _ItemSearchAndFilterState extends ConsumerState<ItemSearchAndFilter> {
         return context.l10n.origin;
       case 'producer':
         return context.l10n.producer;
+      case 'profile':
+        return context.l10n.profileLabel;
       default:
         return categoryKey;
     }
