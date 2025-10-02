@@ -4,7 +4,7 @@ import '../../models/gin_item.dart';
 import '../../models/api_response.dart';
 import '../../providers/item_provider.dart';
 import '../../services/item_service.dart';
-import '../items/generic_item_form_screen.dart';
+import '../../forms/generic_item_form_screen.dart';
 
 /// Screen for creating a new gin item
 class GinCreateScreen extends ConsumerWidget {
