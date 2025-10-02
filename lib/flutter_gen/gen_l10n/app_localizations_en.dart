@@ -1290,4 +1290,70 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get followsDeviceLanguage => 'Follows device language';
+
+  @override
+  String get gin => 'Gin';
+
+  @override
+  String get gins => 'Gins';
+
+  @override
+  String get profileLabel => 'Profile';
+
+  @override
+  String get enterGinName => 'Enter gin name';
+
+  @override
+  String get enterProfile => 'Enter flavor profile';
+
+  @override
+  String get profileHint => 'e.g., Forestier / boréal, Floral, Épicé';
+
+  @override
+  String get profileHelperText => 'Optional - flavor category';
+
+  @override
+  String get ginCreated => 'Gin created successfully!';
+
+  @override
+  String get ginUpdated => 'Gin updated successfully!';
+
+  @override
+  String get ginDeleted => 'Gin deleted successfully!';
+
+  @override
+  String get createGin => 'Create Gin';
+
+  @override
+  String get editGin => 'Edit Gin';
+
+  @override
+  String get addGin => 'Add Gin';
+
+  @override
+  String get allGins => 'All Gins';
+
+  @override
+  String get myGinList => 'My Gin List';
+
+  @override
+  String get filterByProducer => 'Filter by producer';
+
+  @override
+  String get filterByOrigin => 'Filter by origin';
+
+  @override
+  String get filterByProfile => 'Filter by profile';
+
+  @override
+  String get noGinsFound => 'No gins found';
+
+  @override
+  String get loadingGins => 'Loading gins...';
+
+  @override
+  String get profileRequired => 'Profile is required';
+
+  @override
+  String get editItemTooltip => 'Edit item';
 }

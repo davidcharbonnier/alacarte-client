@@ -16,6 +16,7 @@ import 'route_names.dart';
 import '../screens/settings/user_settings_screen.dart';
 import '../screens/settings/privacy_settings_screen.dart';
 import '../screens/cheese/cheese_form_screens.dart';
+import '../screens/gin/gin_form_screens.dart';
 
 /// Provider for the GoRouter configuration with OAuth authentication
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -170,6 +171,26 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             return _buildPlaceholderScreen('Invalid Cheese ID');
           }
           return CheeseEditScreen(cheeseId: cheeseId);
+        },
+      ),
+
+      // Gin-specific routes
+      GoRoute(
+        path: RoutePaths.ginCreate,
+        name: RouteNames.ginCreate,
+        builder: (context, state) => const GinCreateScreen(),
+      ),
+
+      GoRoute(
+        path: RoutePaths.ginEdit,
+        name: RouteNames.ginEdit,
+        builder: (context, state) {
+          final ginIdParam = state.pathParameters[RouteParams.ginId];
+          final ginId = int.tryParse(ginIdParam ?? '');
+          if (ginId == null) {
+            return _buildPlaceholderScreen('Invalid Gin ID');
+          }
+          return GinEditScreen(ginId: ginId);
         },
       ),
 

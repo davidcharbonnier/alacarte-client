@@ -43,11 +43,19 @@ class HomeScreen extends ConsumerWidget {
     
     // Ensure data is loaded when accessing the home screen
     final cheeseItemState = ref.watch(cheeseItemProvider);
+    final ginItemState = ref.watch(ginItemProvider);
     
-    // Load data if not already loaded and not currently loading
+    // Load cheese data if not already loaded and not currently loading
     if (!cheeseItemState.hasLoadedOnce && !cheeseItemState.isLoading) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         ref.read(cheeseItemProvider.notifier).loadItems();
+      });
+    }
+    
+    // Load gin data if not already loaded and not currently loading
+    if (!ginItemState.hasLoadedOnce && !ginItemState.isLoading) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(ginItemProvider.notifier).loadItems();
       });
     }
     
@@ -70,6 +78,7 @@ class HomeScreen extends ConsumerWidget {
       body: RefreshIndicator(
         onRefresh: () async {
           ref.read(cheeseItemProvider.notifier).refreshItems();
+          ref.read(ginItemProvider.notifier).refreshItems();
           ref.read(ratingProvider.notifier).refreshRatings();
         },
         child: SingleChildScrollView(
@@ -99,6 +108,18 @@ class HomeScreen extends ConsumerWidget {
                     AppConstants.primaryColor,
                     cheeseItemState.items.length,
                     _getUniqueItemCount(ratingState.ratings, 'cheese'),
+                  ),
+                  
+                  const SizedBox(height: AppConstants.spacingM),
+                  
+                  _buildItemTypeCard(
+                    context,
+                    ItemTypeLocalizer.getLocalizedItemType(context, 'gin'),
+                    'gin',
+                    Icons.local_bar,
+                    Colors.teal,
+                    ginItemState.items.length,
+                    _getUniqueItemCount(ratingState.ratings, 'gin'),
                   ),
                   
                   const SizedBox(height: AppConstants.spacingM),

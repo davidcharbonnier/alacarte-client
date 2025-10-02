@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/rateable_item.dart';
 import '../models/cheese_item.dart';
+import '../models/gin_item.dart';
 import '../models/api_response.dart';
 import '../services/api_service.dart';
 
@@ -216,4 +217,135 @@ class CheeseItemService extends ItemService<CheeseItem> {
 /// Provider for CheeseItemService
 final cheeseItemServiceProvider = Provider<CheeseItemService>(
   (ref) => CheeseItemService(),
+);
+
+/// Concrete implementation for Gin items
+class GinItemService extends ItemService<GinItem> {
+  // Cache for avoiding duplicate API calls
+  ApiResponse<List<GinItem>>? _cachedResponse;
+  DateTime? _cacheTime;
+  static const Duration _cacheExpiry = Duration(minutes: 5);
+  
+  @override
+  String get itemTypeEndpoint => '/api/gin';
+
+  @override
+  GinItem Function(dynamic) get fromJson =>
+      (dynamic json) => GinItem.fromJson(json as Map<String, dynamic>);
+
+  @override
+  List<String> Function(GinItem) get validateItem => _validateGinItem;
+  
+  @override
+  Future<ApiResponse<List<GinItem>>> getAllItems() async {
+    // Check if we have valid cached data
+    if (_cachedResponse != null && _cacheTime != null) {
+      final age = DateTime.now().difference(_cacheTime!);
+      if (age < _cacheExpiry) {
+        return _cachedResponse!;
+      }
+    }
+    
+    // Make API call and cache result
+    final response = await handleListResponse<GinItem>(get('$itemTypeEndpoint/all'), fromJson);
+    
+    // Cache successful responses
+    if (response is ApiSuccess<List<GinItem>>) {
+      _cachedResponse = response;
+      _cacheTime = DateTime.now();
+    }
+    
+    return response;
+  }
+  
+  /// Clear cache (useful for testing or after data changes)
+  void clearCache() {
+    _cachedResponse = null;
+    _cacheTime = null;
+  }
+
+  static List<String> _validateGinItem(GinItem gin) {
+    final errors = <String>[];
+
+    if (gin.name.trim().isEmpty) {
+      errors.add('Name is required');
+    }
+
+    if (gin.producer.trim().isEmpty) {
+      errors.add('Producer is required');
+    }
+
+    if (gin.origin.trim().isEmpty) {
+      errors.add('Origin is required');
+    }
+
+    if (gin.profile.trim().isEmpty) {
+      errors.add('Profile is required');
+    }
+
+    if (gin.description != null && gin.description!.trim().isEmpty) {
+      errors.add('Description cannot be empty if provided');
+    }
+
+    return errors;
+  }
+
+  /// Get unique gin producers for filtering
+  Future<ApiResponse<List<String>>> getGinProducers() async {
+    final response = await getAllItems();
+    return response.when(
+      success: (gins, _) {
+        final producers = GinItemExtension.getUniqueProducers(gins);
+        return ApiResponseHelper.success(producers);
+      },
+      error: (message, statusCode, errorCode, details) =>
+          ApiResponseHelper.error<List<String>>(
+            message,
+            statusCode: statusCode,
+            errorCode: errorCode,
+          ),
+      loading: () => ApiResponseHelper.loading<List<String>>(),
+    );
+  }
+
+  /// Get unique gin origins for filtering
+  Future<ApiResponse<List<String>>> getGinOrigins() async {
+    final response = await getAllItems();
+    return response.when(
+      success: (gins, _) {
+        final origins = GinItemExtension.getUniqueOrigins(gins);
+        return ApiResponseHelper.success(origins);
+      },
+      error: (message, statusCode, errorCode, details) =>
+          ApiResponseHelper.error<List<String>>(
+            message,
+            statusCode: statusCode,
+            errorCode: errorCode,
+          ),
+      loading: () => ApiResponseHelper.loading<List<String>>(),
+    );
+  }
+
+  /// Get unique gin profiles for filtering
+  Future<ApiResponse<List<String>>> getGinProfiles() async {
+    final response = await getAllItems();
+    return response.when(
+      success: (gins, _) {
+        final profiles = GinItemExtension.getUniqueProfiles(gins);
+        return ApiResponseHelper.success(profiles);
+      },
+      error: (message, statusCode, errorCode, details) =>
+          ApiResponseHelper.error<List<String>>(
+            message,
+            statusCode: statusCode,
+            errorCode: errorCode,
+          ),
+      loading: () => ApiResponseHelper.loading<List<String>>(),
+    );
+  }
+}
+
+/// Provider for GinItemService
+final ginItemServiceProvider = Provider<GinItemService>(
+  (ref) => GinItemService(),
 );

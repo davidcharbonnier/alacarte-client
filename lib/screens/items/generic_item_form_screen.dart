@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/rateable_item.dart';
 import '../../models/cheese_item.dart';
+import '../../models/gin_item.dart';
 import '../../providers/item_provider.dart';
 import '../../utils/constants.dart';
 import '../../utils/localization_utils.dart';
@@ -34,7 +35,8 @@ class _GenericItemFormScreenState<T extends RateableItem>
 
   // Controllers for form fields
   late final TextEditingController _nameController;
-  late final TextEditingController _typeController;
+  late final TextEditingController _typeController; // Used for cheese type
+  late final TextEditingController _profileController; // Used for gin profile
   late final TextEditingController _originController;
   late final TextEditingController _producerController;
   late final TextEditingController _descriptionController;
@@ -55,14 +57,26 @@ class _GenericItemFormScreenState<T extends RateableItem>
       final cheese = widget.initialItem as CheeseItem;
       _nameController = TextEditingController(text: cheese.name);
       _typeController = TextEditingController(text: cheese.type);
+      _profileController = TextEditingController(); // Not used for cheese
       _originController = TextEditingController(text: cheese.origin);
       _producerController = TextEditingController(text: cheese.producer);
       _descriptionController = TextEditingController(
         text: cheese.description ?? '',
       );
+    } else if (widget.initialItem != null && widget.initialItem is GinItem) {
+      final gin = widget.initialItem as GinItem;
+      _nameController = TextEditingController(text: gin.name);
+      _typeController = TextEditingController(); // Not used for gin
+      _profileController = TextEditingController(text: gin.profile);
+      _originController = TextEditingController(text: gin.origin);
+      _producerController = TextEditingController(text: gin.producer);
+      _descriptionController = TextEditingController(
+        text: gin.description ?? '',
+      );
     } else {
       _nameController = TextEditingController();
       _typeController = TextEditingController();
+      _profileController = TextEditingController();
       _originController = TextEditingController();
       _producerController = TextEditingController();
       _descriptionController = TextEditingController();
@@ -79,6 +93,7 @@ class _GenericItemFormScreenState<T extends RateableItem>
 
     _nameController.addListener(trackChanges);
     _typeController.addListener(trackChanges);
+    _profileController.addListener(trackChanges);
     _originController.addListener(trackChanges);
     _producerController.addListener(trackChanges);
     _descriptionController.addListener(trackChanges);
@@ -88,6 +103,7 @@ class _GenericItemFormScreenState<T extends RateableItem>
   void dispose() {
     _nameController.dispose();
     _typeController.dispose();
+    _profileController.dispose();
     _originController.dispose();
     _producerController.dispose();
     _descriptionController.dispose();
@@ -101,10 +117,18 @@ class _GenericItemFormScreenState<T extends RateableItem>
   }
 
   bool get _isFormValid {
-    return _nameController.text.trim().isNotEmpty &&
-        _typeController.text.trim().isNotEmpty &&
+    final baseValid =
+        _nameController.text.trim().isNotEmpty &&
         _originController.text.trim().isNotEmpty &&
         _producerController.text.trim().isNotEmpty;
+
+    if (widget.itemType == 'cheese') {
+      return baseValid && _typeController.text.trim().isNotEmpty;
+    } else if (widget.itemType == 'gin') {
+      return baseValid && _profileController.text.trim().isNotEmpty;
+    }
+
+    return baseValid;
   }
 
   void _navigateBack() {
@@ -183,6 +207,41 @@ class _GenericItemFormScreenState<T extends RateableItem>
           _navigateBack();
         } else {
           final error = ref.read(cheeseItemProvider).error;
+          setState(() {
+            _error =
+                error ??
+                (_isEditMode
+                    ? context.l10n.couldNotUpdateItem(
+                        _localizedItemType.toLowerCase(),
+                      )
+                    : context.l10n.couldNotCreateItem(
+                        _localizedItemType.toLowerCase(),
+                      ));
+          });
+        }
+      } else if (widget.itemType == 'gin') {
+        final gin = GinItem(
+          id: widget.itemId,
+          name: _nameController.text.trim(),
+          producer: _producerController.text.trim(),
+          origin: _originController.text.trim(),
+          profile: _profileController.text.trim(),
+          description: _descriptionController.text.trim().isNotEmpty
+              ? _descriptionController.text.trim()
+              : null,
+        );
+
+        final success = _isEditMode
+            ? await ref
+                  .read(ginItemProvider.notifier)
+                  .updateItem(widget.itemId!, gin)
+            : await ref.read(ginItemProvider.notifier).createItem(gin);
+
+        if (success) {
+          _showSuccessMessage();
+          _navigateBack();
+        } else {
+          final error = ref.read(ginItemProvider).error;
           setState(() {
             _error =
                 error ??
@@ -410,21 +469,20 @@ class _GenericItemFormScreenState<T extends RateableItem>
                                       height: AppConstants.spacingL,
                                     ),
 
-                                    // Type field
+                                    // Type/Profile field (cheese uses type, gin uses profile)
                                     if (widget.itemType == 'cheese') ...[
                                       CheeseTypeField(
                                         controller: _typeController,
                                         enabled: !_isLoading,
                                       ),
-                                    ] else ...[
+                                    ] else if (widget.itemType == 'gin') ...[
                                       ItemPropertyField(
-                                        controller: _typeController,
-                                        labelText: context.l10n.type,
-                                        hintText:
-                                            'Enter ${widget.itemType} type',
+                                        controller: _profileController,
+                                        labelText: context.l10n.profileLabel,
+                                        hintText: context.l10n.enterProfile,
                                         required: true,
                                         enabled: !_isLoading,
-                                        prefixIcon: Icons.category,
+                                        prefixIcon: Icons.local_bar,
                                       ),
                                     ],
 

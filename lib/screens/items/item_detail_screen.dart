@@ -5,18 +5,17 @@ import '../../providers/auth_provider.dart';
 import '../../providers/item_provider.dart';
 import '../../providers/rating_provider.dart';
 import '../../providers/app_provider.dart';
-import '../../models/cheese_item.dart';
+import '../../providers/community_stats_provider.dart';
 import '../../models/rating.dart';
 import '../../models/rateable_item.dart';
 import '../../models/api_response.dart';
 import '../../services/rating_service.dart';
-import '../../services/item_service.dart';
-import '../../services/api_service.dart';
 import '../../routes/route_names.dart';
 import '../../utils/constants.dart';
 import '../../utils/localization_utils.dart';
 import '../../utils/appbar_helper.dart';
 import '../../utils/safe_navigation.dart';
+import '../../utils/item_provider_helper.dart';
 import '../../widgets/items/item_detail_header.dart';
 import '../../widgets/items/my_rating_section.dart';
 import '../../widgets/items/shared_ratings_list.dart';
@@ -39,7 +38,6 @@ class ItemDetailScreen extends ConsumerStatefulWidget {
 class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen> {
   RateableItem? _item;
   List<Rating> _itemRatings = []; // User's own ratings + shared ratings
-  Map<String, dynamic>? _communityStats; // True community statistics
   bool _isLoading = true;
 
   @override
@@ -51,55 +49,23 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen> {
   }
 
   Future<void> _loadItemData() async {
-    if (widget.itemType != 'cheese') return;
+    if (!ItemTypeHelper.isItemTypeSupported(widget.itemType)) return;
 
     setState(() {
       _isLoading = true;
     });
 
     try {
-      // Get item details
-      final cheeseItemState = ref.read(cheeseItemProvider);
-      _item = cheeseItemState.items
-          .where((item) => item.id == widget.itemId)
-          .firstOrNull;
-
-      // If not in cache, load from API
-      if (_item == null) {
-        final service = ref.read(cheeseItemServiceProvider);
-        final response = await service.getItemById(widget.itemId);
-
-        response.when(
-          success: (item, message) {
-            _item = item;
-          },
-          error: (message, statusCode, errorCode, details) {
-            print('Error loading item: $message');
-          },
-          loading: () {},
-        );
-      }
+      // Get item details using helper (checks cache first, then API)
+      _item = await ItemProviderHelper.getItemById(
+        ref,
+        widget.itemType,
+        widget.itemId,
+      );
 
       final ratingService = ref.read(ratingServiceProvider);
       final authState = ref.read(authProvider);
       final currentUserId = authState.user?.id;
-
-      // Load true community statistics (anonymous aggregate data)
-      final apiService = ref.read(apiServiceProvider);
-      final communityStatsResponse = await apiService.getCommunityStats(
-        widget.itemType,
-        widget.itemId,
-      );
-      communityStatsResponse.when(
-        success: (stats, message) {
-          _communityStats = stats;
-        },
-        error: (message, statusCode, errorCode, details) {
-          print('Error loading community stats: $message');
-          _communityStats = null;
-        },
-        loading: () {},
-      );
 
       // Load user-specific ratings (own ratings + ratings shared with user)
       if (currentUserId != null) {
@@ -107,23 +73,21 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen> {
           currentUserId,
         );
 
-        viewerRatingsResponse.when(
-          success: (viewerRatings, message) {
-            // Filter to only ratings for this specific item
-            _itemRatings = viewerRatings
-                .where(
-                  (r) =>
-                      r.itemType == widget.itemType &&
-                      r.itemId == widget.itemId,
-                )
-                .toList();
-          },
-          error: (message, statusCode, errorCode, details) {
-            print('Error loading viewer ratings: $message');
-            _itemRatings = [];
-          },
-          loading: () {},
-        );
+        // Use direct type checking as documented in README
+        // ✅ Correct - Direct type checking pattern
+        if (viewerRatingsResponse is ApiSuccess<List<Rating>>) {
+          // Filter to only ratings for this specific item
+          _itemRatings = viewerRatingsResponse.data
+              .where(
+                (r) =>
+                    r.itemType == widget.itemType &&
+                    r.itemId == widget.itemId,
+              )
+              .toList();
+        } else if (viewerRatingsResponse is ApiError<List<Rating>>) {
+          print('Error loading viewer ratings: ${viewerRatingsResponse.message}');
+          _itemRatings = [];
+        }
       } else {
         _itemRatings = [];
       }
@@ -153,6 +117,8 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen> {
   void _navigateToEditItem() {
     if (widget.itemType == 'cheese') {
       GoRouter.of(context).go('${RouteNames.cheeseEdit}/${widget.itemId}');
+    } else if (widget.itemType == 'gin') {
+      GoRouter.of(context).go('${RouteNames.ginEdit}/${widget.itemId}');
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -248,7 +214,11 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen> {
         ),
       ),
       body: RefreshIndicator(
-        onRefresh: _loadItemData,
+        onRefresh: () async {
+          await _loadItemData();
+          // Invalidate community stats to force refresh
+          ref.invalidate(communityStatsProvider);
+        },
         child: SingleChildScrollView(
           padding: AppConstants.screenPadding,
           child: Center(
@@ -270,8 +240,7 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen> {
                   // Community statistics section using reusable widget
                   RatingSummaryCard(
                     item: _item!,
-                    communityStats: _communityStats,
-                    isLoading: _isLoading,
+                    itemType: widget.itemType,
                   ),
 
                   const SizedBox(height: AppConstants.spacingL),

@@ -5,20 +5,20 @@ import '../../providers/auth_provider.dart';
 import '../../providers/item_provider.dart';
 import '../../providers/rating_provider.dart';
 import '../../providers/app_provider.dart';
+import '../../providers/community_stats_provider.dart';
 import '../../services/api_service.dart';
 import '../../models/rating.dart';
-import '../../models/cheese_item.dart';
 import '../../models/rateable_item.dart';
-import '../../models/api_response.dart';
 import '../../utils/constants.dart';
 import '../../utils/localization_utils.dart';
 import '../../utils/appbar_helper.dart';
 import '../../utils/safe_navigation.dart';
+import '../../utils/item_provider_helper.dart';
 import '../../routes/route_names.dart';
 import '../../widgets/common/item_search_filter.dart';
 import '../../utils/item_filter_helper.dart';
 
-/// Dedicated screen for a specific item type (cheese, wine, etc.)
+/// Dedicated screen for a specific item type (cheese, gin, wine, etc.)
 class ItemTypeScreen extends ConsumerStatefulWidget {
   final String itemType;
 
@@ -59,26 +59,24 @@ class _ItemTypeScreenState extends ConsumerState<ItemTypeScreen>
 
   void _loadItemTypeData() {
     // Only load if data has never been loaded and is not currently loading
-    if (widget.itemType == 'cheese') {
-      final cheeseState = ref.read(cheeseItemProvider);
-      if (!cheeseState.hasLoadedOnce && !cheeseState.isLoading) {
-        ref.read(cheeseItemProvider.notifier).loadItems();
-      }
+    if (!ItemProviderHelper.hasLoadedOnce(ref, widget.itemType) &&
+        !ItemProviderHelper.isLoading(ref, widget.itemType)) {
+      ItemProviderHelper.loadItems(ref, widget.itemType);
     }
-    
+
     // Always refresh ratings as they can change more frequently
     ref.read(ratingProvider.notifier).refreshRatings();
   }
 
   void _onTabChanged() {
     // Clear tab-specific filters when switching tabs
-    final cheeseItemState = ref.read(cheeseItemProvider);
+    final activeFilters = ItemProviderHelper.getActiveFilters(ref, widget.itemType);
     final hasTabSpecificFilters =
-        cheeseItemState.categoryFilters.containsKey('rating_source') ||
-        cheeseItemState.categoryFilters.containsKey('rating_status');
+        activeFilters.containsKey('rating_source') ||
+        activeFilters.containsKey('rating_status');
 
     if (hasTabSpecificFilters) {
-      ref.read(cheeseItemProvider.notifier).clearTabSpecificFilters();
+      ItemProviderHelper.clearTabSpecificFilters(ref, widget.itemType);
     }
   }
 
@@ -89,6 +87,8 @@ class _ItemTypeScreenState extends ConsumerState<ItemTypeScreen>
   void _navigateToAddItem() {
     if (widget.itemType == 'cheese') {
       GoRouter.of(context).go(RouteNames.cheeseCreate);
+    } else if (widget.itemType == 'gin') {
+      GoRouter.of(context).go(RouteNames.ginCreate);
     } else {
       // Future enhancement: support other item types
       GoRouter.of(context).go(RouteNames.cheeseCreate);
@@ -111,11 +111,9 @@ class _ItemTypeScreenState extends ConsumerState<ItemTypeScreen>
     final appState = ref.watch(appProvider);
     final currentUser = authState.user;
 
-    // Get data based on item type
-    final isLoading = widget.itemType == 'cheese'
-        ? ref.watch(cheeseItemProvider).isLoading ||
-              ref.watch(ratingProvider).isLoading
-        : false;
+    // Generic loading state using helper
+    final isLoading = ItemProviderHelper.isLoading(ref, widget.itemType) ||
+        ref.watch(ratingProvider).isLoading;
 
     return Scaffold(
       appBar: AppBar(
@@ -180,11 +178,11 @@ class _ItemTypeScreenState extends ConsumerState<ItemTypeScreen>
   }
 
   int _getTabSpecificTotalCount() {
-    final cheeseItemState = ref.read(cheeseItemProvider);
+    final items = ItemProviderHelper.getItems(ref, widget.itemType);
 
     if (_tabController.index == 0) {
       // "All Items" tab - show total available items
-      return cheeseItemState.items.length;
+      return items.length;
     } else {
       // "My List" tab - show total items in personal list
       final ratingState = ref.read(ratingProvider);
@@ -192,33 +190,32 @@ class _ItemTypeScreenState extends ConsumerState<ItemTypeScreen>
       final userRatings = ratingState.ratings as List<Rating>;
 
       final ratedItemIds = userRatings
-          .where((r) => r.itemType == 'cheese')
+          .where((r) => r.itemType == widget.itemType)
           .map((r) => r.itemId)
           .toSet();
 
-      return cheeseItemState.items
-          .where((item) => ratedItemIds.contains(item.id))
-          .length;
+      return items.where((item) => ratedItemIds.contains(item.id)).length;
     }
   }
 
   int _getTabSpecificFilteredCount() {
-    final cheeseItemState = ref.read(cheeseItemProvider);
+    final filteredItems = ItemProviderHelper.getFilteredItems(ref, widget.itemType);
+    final activeFilters = ItemProviderHelper.getActiveFilters(ref, widget.itemType);
     final ratingState = ref.read(ratingProvider);
     final currentUserId = ref.read(authProvider).user?.id;
     final userRatings = ratingState.ratings as List<Rating>;
 
     if (_tabController.index == 0) {
       // "All Items" tab - apply rating filters to get accurate count
-      var itemsToCount = cheeseItemState.filteredItems;
+      var itemsToCount = filteredItems;
 
       // Apply rating-based filters if any
-      if (cheeseItemState.categoryFilters.containsKey('rating_status')) {
+      if (activeFilters.containsKey('rating_status')) {
         itemsToCount = ItemFilterHelper.filterItemsWithRatingContext(
           itemsToCount,
           userRatings,
           currentUserId,
-          cheeseItemState.categoryFilters,
+          activeFilters,
           false, // isPersonalListTab = false
         );
       }
@@ -226,47 +223,43 @@ class _ItemTypeScreenState extends ConsumerState<ItemTypeScreen>
       return itemsToCount.length;
     } else {
       // "My List" tab - show filtered personal list count
-      final ratingSourceFilter =
-          cheeseItemState.categoryFilters['rating_source'];
+      final ratingSourceFilter = activeFilters['rating_source'];
 
       // Apply search and filter to the base items first
-      var filteredBaseItems = cheeseItemState.filteredItems;
+      var filteredBaseItems = filteredItems;
 
       // Apply rating source filters if any (My Ratings vs Recommendations)
-      if (cheeseItemState.categoryFilters.containsKey('rating_source')) {
+      if (activeFilters.containsKey('rating_source')) {
+        final allItems = ItemProviderHelper.getItems(ref, widget.itemType);
+        final searchQuery = ItemProviderHelper.getSearchQuery(ref, widget.itemType);
+        
         // For recommendations filter, we need to start with all items that have ratings
-        // (same logic as in _buildMyListTab)
         if (ratingSourceFilter == 'recommendations') {
           final allRatedItemIds = userRatings
-              .where((r) => r.itemType == 'cheese')
+              .where((r) => r.itemType == widget.itemType)
               .map((r) => r.itemId)
               .toSet();
 
           // Start with all items that have any ratings, then apply search/category filters
-          var allRatedItems = cheeseItemState.items
+          var allRatedItems = allItems
               .where((item) => allRatedItemIds.contains(item.id))
               .toList();
 
           // Apply search query if present
-          if (cheeseItemState.searchQuery.isNotEmpty) {
+          if (searchQuery.isNotEmpty) {
             allRatedItems = allRatedItems
-                .where(
-                  (item) => item.name.toLowerCase().contains(
-                    cheeseItemState.searchQuery.toLowerCase(),
-                  ),
-                )
+                .where((item) => item.searchableText.contains(searchQuery.toLowerCase()))
                 .toList();
           }
 
           // Apply category filters if present
-          for (final entry in cheeseItemState.categoryFilters.entries) {
+          for (final entry in activeFilters.entries) {
             if (entry.key != 'rating_source') {
-              // Skip the rating source filter
               allRatedItems = allRatedItems
                   .where(
                     (item) =>
                         item.categories[entry.key]?.toLowerCase() ==
-                        entry.value.toLowerCase(),
+                        entry.value?.toLowerCase(),
                   )
                   .toList();
             }
@@ -274,39 +267,34 @@ class _ItemTypeScreenState extends ConsumerState<ItemTypeScreen>
 
           filteredBaseItems = allRatedItems;
         } else if (ratingSourceFilter == 'personal') {
-          // For personal filter, start with items the user has rated (same logic as _buildMyListTab)
+          // For personal filter, start with items the user has rated
           final personalRatedItemIds = userRatings
               .where(
-                (r) => r.itemType == 'cheese' && r.authorId == currentUserId,
+                (r) => r.itemType == widget.itemType && r.authorId == currentUserId,
               )
               .map((r) => r.itemId)
               .toSet();
 
           // Start with all items that user has rated, then apply search/category filters
-          var personalRatedItems = cheeseItemState.items
+          var personalRatedItems = allItems
               .where((item) => personalRatedItemIds.contains(item.id))
               .toList();
 
           // Apply search query if present
-          if (cheeseItemState.searchQuery.isNotEmpty) {
+          if (searchQuery.isNotEmpty) {
             personalRatedItems = personalRatedItems
-                .where(
-                  (item) => item.name.toLowerCase().contains(
-                    cheeseItemState.searchQuery.toLowerCase(),
-                  ),
-                )
+                .where((item) => item.searchableText.contains(searchQuery.toLowerCase()))
                 .toList();
           }
 
           // Apply category filters if present
-          for (final entry in cheeseItemState.categoryFilters.entries) {
+          for (final entry in activeFilters.entries) {
             if (entry.key != 'rating_source') {
-              // Skip the rating source filter
               personalRatedItems = personalRatedItems
                   .where(
                     (item) =>
                         item.categories[entry.key]?.toLowerCase() ==
-                        entry.value.toLowerCase(),
+                        entry.value?.toLowerCase(),
                   )
                   .toList();
             }
@@ -319,7 +307,7 @@ class _ItemTypeScreenState extends ConsumerState<ItemTypeScreen>
           filteredBaseItems,
           userRatings,
           currentUserId,
-          cheeseItemState.categoryFilters,
+          activeFilters,
           true, // isPersonalListTab = true
         );
 
@@ -330,7 +318,7 @@ class _ItemTypeScreenState extends ConsumerState<ItemTypeScreen>
       final personalRatings = userRatings
           .where(
             (r) =>
-                r.itemType == 'cheese' &&
+                r.itemType == widget.itemType &&
                 r.authorId == currentUserId &&
                 filteredBaseItems.any((item) => item.id == r.itemId),
           )
@@ -339,7 +327,7 @@ class _ItemTypeScreenState extends ConsumerState<ItemTypeScreen>
       final sharedRatings = userRatings
           .where(
             (r) =>
-                r.itemType == 'cheese' &&
+                r.itemType == widget.itemType &&
                 r.authorId != currentUserId &&
                 filteredBaseItems.any((item) => item.id == r.itemId),
           )
@@ -395,6 +383,26 @@ class _ItemTypeScreenState extends ConsumerState<ItemTypeScreen>
           ),
         ),
         PopupMenuItem(
+          value: 'gin',
+          child: Row(
+            children: [
+              Icon(
+                Icons.local_bar,
+                color: widget.itemType == 'gin' ? Colors.teal : null,
+              ),
+              const SizedBox(width: AppConstants.spacingS),
+              Text(
+                ItemTypeLocalizer.getLocalizedItemType(context, 'gin'),
+                style: TextStyle(
+                  fontWeight:
+                      widget.itemType == 'gin' ? FontWeight.bold : FontWeight.normal,
+                  color: widget.itemType == 'gin' ? Colors.teal : null,
+                ),
+              ),
+            ],
+          ),
+        ),
+        PopupMenuItem(
           enabled: false,
           child: Row(
             children: [
@@ -412,49 +420,56 @@ class _ItemTypeScreenState extends ConsumerState<ItemTypeScreen>
   }
 
   Widget _buildAllItemsTab(bool isLoading) {
-    if (widget.itemType != 'cheese') {
+    if (!ItemTypeHelper.isItemTypeSupported(widget.itemType)) {
       return _buildComingSoonTab();
     }
 
-    final cheeseItemState = ref.watch(cheeseItemProvider);
+    final filteredItems = ItemProviderHelper.getFilteredItems(ref, widget.itemType);
+    final allItems = ItemProviderHelper.getItems(ref, widget.itemType);
+    final activeFilters = ItemProviderHelper.getActiveFilters(ref, widget.itemType);
     final ratingState = ref.watch(ratingProvider);
     final currentUserId = ref.read(authProvider).user?.id;
 
     // Start with provider's filtered items (search + category filters)
-    var itemsToShow = cheeseItemState.filteredItems;
+    var itemsToShow = filteredItems;
 
     // Apply rating-based filters if any
-    if (cheeseItemState.categoryFilters.containsKey('rating_status')) {
+    if (activeFilters.containsKey('rating_status')) {
       itemsToShow = ItemFilterHelper.filterItemsWithRatingContext(
         itemsToShow,
         ratingState.ratings,
         currentUserId,
-        cheeseItemState.categoryFilters,
+        activeFilters,
         false, // isPersonalListTab = false
       );
     }
 
     return RefreshIndicator(
       onRefresh: () async {
-        ref.read(cheeseItemProvider.notifier).refreshItems();
+        await ItemProviderHelper.refreshItems(ref, widget.itemType);
         ref.read(ratingProvider.notifier).refreshRatings();
+        // Invalidate all community stats to force refresh
+        ref.invalidate(communityStatsProvider);
       },
       child: isLoading
           ? const Center(child: CircularProgressIndicator())
-          : cheeseItemState.items.isEmpty
-          ? _buildEmptyItemsState()
-          : itemsToShow.isEmpty && cheeseItemState.hasActiveFilters
-          ? _buildNoFilterResultsState()
-          : _buildItemsList(itemsToShow, ratingState.ratings, showAll: true),
+          : allItems.isEmpty
+              ? _buildEmptyItemsState()
+              : itemsToShow.isEmpty && activeFilters.isNotEmpty
+                  ? _buildNoFilterResultsState()
+                  : _buildItemsList(itemsToShow, ratingState.ratings, showAll: true),
     );
   }
 
   Widget _buildMyListTab(bool isLoading) {
-    if (widget.itemType != 'cheese') {
+    if (!ItemTypeHelper.isItemTypeSupported(widget.itemType)) {
       return _buildComingSoonTab();
     }
 
-    final cheeseItemState = ref.watch(cheeseItemProvider);
+    final filteredItems = ItemProviderHelper.getFilteredItems(ref, widget.itemType);
+    final allItems = ItemProviderHelper.getItems(ref, widget.itemType);
+    final activeFilters = ItemProviderHelper.getActiveFilters(ref, widget.itemType);
+    final searchQuery = ItemProviderHelper.getSearchQuery(ref, widget.itemType);
     final ratingState = ref.watch(ratingProvider);
     final currentUserId = ref.read(authProvider).user?.id;
 
@@ -465,46 +480,38 @@ class _ItemTypeScreenState extends ConsumerState<ItemTypeScreen>
     final userRatings = ratingState.ratings as List<Rating>;
 
     // Apply search and filter to the base items first
-    var filteredBaseItems = cheeseItemState.filteredItems;
+    var filteredBaseItems = filteredItems;
 
     // Apply rating source filters if any (My Ratings vs Recommendations)
-    if (cheeseItemState.categoryFilters.containsKey('rating_source')) {
-      final ratingSourceFilter =
-          cheeseItemState.categoryFilters['rating_source'];
+    if (activeFilters.containsKey('rating_source')) {
+      final ratingSourceFilter = activeFilters['rating_source'];
 
       // For recommendations filter, we need to start with all items that have ratings
-      // (not just items in the personal list)
       if (ratingSourceFilter == 'recommendations') {
         final allRatedItemIds = userRatings
-            .where((r) => r.itemType == 'cheese')
+            .where((r) => r.itemType == widget.itemType)
             .map((r) => r.itemId)
             .toSet();
 
         // Start with all items that have any ratings, then apply search/category filters
-        var allRatedItems = cheeseItemState.items
-            .where((item) => allRatedItemIds.contains(item.id))
-            .toList();
+        var allRatedItems =
+            allItems.where((item) => allRatedItemIds.contains(item.id)).toList();
 
         // Apply search query if present
-        if (cheeseItemState.searchQuery.isNotEmpty) {
+        if (searchQuery.isNotEmpty) {
           allRatedItems = allRatedItems
-              .where(
-                (item) => item.name.toLowerCase().contains(
-                  cheeseItemState.searchQuery.toLowerCase(),
-                ),
-              )
+              .where((item) => item.searchableText.contains(searchQuery.toLowerCase()))
               .toList();
         }
 
         // Apply category filters if present
-        for (final entry in cheeseItemState.categoryFilters.entries) {
+        for (final entry in activeFilters.entries) {
           if (entry.key != 'rating_source') {
-            // Skip the rating source filter
             allRatedItems = allRatedItems
                 .where(
                   (item) =>
                       item.categories[entry.key]?.toLowerCase() ==
-                      entry.value.toLowerCase(),
+                      entry.value?.toLowerCase(),
                 )
                 .toList();
           }
@@ -514,35 +521,29 @@ class _ItemTypeScreenState extends ConsumerState<ItemTypeScreen>
       } else if (ratingSourceFilter == 'personal') {
         // For personal filter, start with items the user has rated
         final personalRatedItemIds = userRatings
-            .where((r) => r.itemType == 'cheese' && r.authorId == currentUserId)
+            .where((r) => r.itemType == widget.itemType && r.authorId == currentUserId)
             .map((r) => r.itemId)
             .toSet();
 
         // Start with all items that user has rated, then apply search/category filters
-        var personalRatedItems = cheeseItemState.items
-            .where((item) => personalRatedItemIds.contains(item.id))
-            .toList();
+        var personalRatedItems =
+            allItems.where((item) => personalRatedItemIds.contains(item.id)).toList();
 
         // Apply search query if present
-        if (cheeseItemState.searchQuery.isNotEmpty) {
+        if (searchQuery.isNotEmpty) {
           personalRatedItems = personalRatedItems
-              .where(
-                (item) => item.name.toLowerCase().contains(
-                  cheeseItemState.searchQuery.toLowerCase(),
-                ),
-              )
+              .where((item) => item.searchableText.contains(searchQuery.toLowerCase()))
               .toList();
         }
 
         // Apply category filters if present
-        for (final entry in cheeseItemState.categoryFilters.entries) {
+        for (final entry in activeFilters.entries) {
           if (entry.key != 'rating_source') {
-            // Skip the rating source filter
             personalRatedItems = personalRatedItems
                 .where(
                   (item) =>
                       item.categories[entry.key]?.toLowerCase() ==
-                      entry.value.toLowerCase(),
+                      entry.value?.toLowerCase(),
                 )
                 .toList();
           }
@@ -555,7 +556,7 @@ class _ItemTypeScreenState extends ConsumerState<ItemTypeScreen>
         filteredBaseItems,
         userRatings,
         currentUserId,
-        cheeseItemState.categoryFilters,
+        activeFilters,
         true, // isPersonalListTab = true
       );
 
@@ -565,7 +566,7 @@ class _ItemTypeScreenState extends ConsumerState<ItemTypeScreen>
         final personalRatings = userRatings
             .where(
               (r) =>
-                  r.itemType == 'cheese' &&
+                  r.itemType == widget.itemType &&
                   r.authorId == currentUserId &&
                   filteredBaseItems.any((item) => item.id == r.itemId),
             )
@@ -580,9 +581,8 @@ class _ItemTypeScreenState extends ConsumerState<ItemTypeScreen>
               : ListView(
                   padding: const EdgeInsets.all(AppConstants.spacingM),
                   children: filteredBaseItems.map((item) {
-                    final myRating = personalRatings
-                        .where((r) => r.itemId == item.id)
-                        .firstOrNull;
+                    final myRating =
+                        personalRatings.where((r) => r.itemId == item.id).firstOrNull;
                     return _buildItemCard(item, myRating, [], false);
                   }).toList(),
                 ),
@@ -600,15 +600,13 @@ class _ItemTypeScreenState extends ConsumerState<ItemTypeScreen>
                   children: filteredBaseItems.map((item) {
                     final myRating = userRatings
                         .where(
-                          (r) =>
-                              r.authorId == currentUserId &&
-                              r.itemId == item.id,
+                          (r) => r.authorId == currentUserId && r.itemId == item.id,
                         )
                         .firstOrNull;
                     final itemRecommendations = userRatings
                         .where(
                           (r) =>
-                              r.itemType == 'cheese' &&
+                              r.itemType == widget.itemType &&
                               r.authorId != currentUserId &&
                               r.isVisibleToUser(currentUserId ?? 0) &&
                               r.itemId == item.id,
@@ -630,7 +628,7 @@ class _ItemTypeScreenState extends ConsumerState<ItemTypeScreen>
     final personalRatings = userRatings
         .where(
           (r) =>
-              r.itemType == 'cheese' &&
+              r.itemType == widget.itemType &&
               r.authorId == currentUserId &&
               filteredBaseItems.any((item) => item.id == r.itemId),
         )
@@ -639,7 +637,7 @@ class _ItemTypeScreenState extends ConsumerState<ItemTypeScreen>
     final sharedRatings = userRatings
         .where(
           (r) =>
-              r.itemType == 'cheese' &&
+              r.itemType == widget.itemType &&
               r.authorId != currentUserId &&
               filteredBaseItems.any((item) => item.id == r.itemId),
         )
@@ -647,16 +645,14 @@ class _ItemTypeScreenState extends ConsumerState<ItemTypeScreen>
 
     // Get items that match the current filters AND have ratings
     final personalItemIds = personalRatings.map((r) => r.itemId).toSet();
-    final personalItems = filteredBaseItems
-        .where((item) => personalItemIds.contains(item.id))
-        .toList();
+    final personalItems =
+        filteredBaseItems.where((item) => personalItemIds.contains(item.id)).toList();
 
     // Get items for shared ratings (items user hasn't rated themselves)
     final sharedItemIds = sharedRatings.map((r) => r.itemId).toSet();
     final sharedOnlyItemIds = sharedItemIds.difference(personalItemIds);
-    final sharedOnlyItems = filteredBaseItems
-        .where((item) => sharedOnlyItemIds.contains(item.id))
-        .toList();
+    final sharedOnlyItems =
+        filteredBaseItems.where((item) => sharedOnlyItemIds.contains(item.id)).toList();
 
     final totalItems = personalItems.length + sharedOnlyItems.length;
 
@@ -665,20 +661,18 @@ class _ItemTypeScreenState extends ConsumerState<ItemTypeScreen>
         await ref.read(ratingProvider.notifier).refreshRatings();
       },
       child: totalItems == 0
-          ? (cheeseItemState.hasActiveFilters
-                ? _buildNoFilterResultsState()
-                : _buildEmptyMyListState())
+          ? (activeFilters.isNotEmpty
+              ? _buildNoFilterResultsState()
+              : _buildEmptyMyListState())
           : ListView(
               padding: const EdgeInsets.all(AppConstants.spacingM),
               children: [
                 // Items with personal ratings
                 ...personalItems.map((item) {
-                  final myRating = personalRatings
-                      .where((r) => r.itemId == item.id)
-                      .firstOrNull;
-                  final itemSharedRatings = sharedRatings
-                      .where((r) => r.itemId == item.id)
-                      .toList();
+                  final myRating =
+                      personalRatings.where((r) => r.itemId == item.id).firstOrNull;
+                  final itemSharedRatings =
+                      sharedRatings.where((r) => r.itemId == item.id).toList();
                   return _buildItemCard(
                     item,
                     myRating,
@@ -689,9 +683,8 @@ class _ItemTypeScreenState extends ConsumerState<ItemTypeScreen>
 
                 // Items with only shared ratings (recommendations)
                 ...sharedOnlyItems.map((item) {
-                  final itemSharedRatings = sharedRatings
-                      .where((r) => r.itemId == item.id)
-                      .toList();
+                  final itemSharedRatings =
+                      sharedRatings.where((r) => r.itemId == item.id).toList();
                   return _buildItemCard(item, null, itemSharedRatings, false);
                 }),
               ],
@@ -707,30 +700,28 @@ class _ItemTypeScreenState extends ConsumerState<ItemTypeScreen>
           Icon(
             Icons.search_off,
             size: 80,
-            color: Theme.of(
-              context,
-            ).colorScheme.onSurface.withValues(alpha: 0.3),
+            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
           ),
           const SizedBox(height: AppConstants.spacingL),
           Text(
             context.l10n.noResultsFound,
-            style: Theme.of(
-              context,
-            ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+            style: Theme.of(context)
+                .textTheme
+                .headlineSmall
+                ?.copyWith(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: AppConstants.spacingM),
           Text(
             context.l10n.adjustSearchFilters,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Theme.of(
-                context,
-              ).colorScheme.onSurface.withValues(alpha: 0.7),
-            ),
+                  color:
+                      Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                ),
           ),
           const SizedBox(height: AppConstants.spacingL),
           OutlinedButton(
             onPressed: () {
-              ref.read(cheeseItemProvider.notifier).clearFilters();
+              ItemProviderHelper.clearFilters(ref, widget.itemType);
             },
             child: Text(context.l10n.clearAllFilters),
           ),
@@ -740,7 +731,7 @@ class _ItemTypeScreenState extends ConsumerState<ItemTypeScreen>
   }
 
   Widget _buildItemsList(
-    List<CheeseItem> items,
+    List<RateableItem> items,
     List<Rating> allRatings, {
     required bool showAll,
   }) {
@@ -750,12 +741,11 @@ class _ItemTypeScreenState extends ConsumerState<ItemTypeScreen>
       itemBuilder: (context, index) {
         final item = items[index];
         final itemRatings = allRatings
-            .where((r) => r.itemId == item.id && r.itemType == 'cheese')
+            .where((r) => r.itemId == item.id && r.itemType == widget.itemType)
             .toList();
         final currentUserId = ref.watch(authProvider).user?.id;
-        final myRating = itemRatings
-            .where((r) => r.authorId == currentUserId)
-            .firstOrNull;
+        final myRating =
+            itemRatings.where((r) => r.authorId == currentUserId).firstOrNull;
         final sharedRatings = itemRatings
             .where(
               (r) =>
@@ -770,7 +760,7 @@ class _ItemTypeScreenState extends ConsumerState<ItemTypeScreen>
   }
 
   Widget _buildItemCard(
-    CheeseItem item,
+    RateableItem item,
     Rating? myRating,
     List<Rating> sharedRatings,
     bool showCommunityData,
@@ -794,8 +784,8 @@ class _ItemTypeScreenState extends ConsumerState<ItemTypeScreen>
                     child: Text(
                       item.displayTitle,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                            fontWeight: FontWeight.bold,
+                          ),
                     ),
                   ),
                   const SizedBox(width: AppConstants.spacingS),
@@ -814,10 +804,11 @@ class _ItemTypeScreenState extends ConsumerState<ItemTypeScreen>
               Text(
                 item.displaySubtitle,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.onSurface.withValues(alpha: 0.7),
-                ),
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withValues(alpha: 0.7),
+                    ),
               ),
             ],
           ),
@@ -827,13 +818,22 @@ class _ItemTypeScreenState extends ConsumerState<ItemTypeScreen>
   }
 
   Widget _buildCommunityRatingsSummary(int itemId) {
-    return FutureBuilder<ApiResponse<Map<String, dynamic>>>(
-      future: ref
-          .read(apiServiceProvider)
-          .getCommunityStats(widget.itemType, itemId),
-      builder: (context, snapshot) {
-        // Default state - loading or no data
-        if (!snapshot.hasData) {
+    // Watch the community stats provider for this specific item
+    final statsAsync = ref.watch(
+      communityStatsProvider(
+        CommunityStatsParams(
+          itemType: widget.itemType,
+          itemId: itemId,
+        ),
+      ),
+    );
+
+    return statsAsync.when(
+      data: (stats) {
+        final totalRatings = stats.totalRatings;
+        final averageRating = stats.averageRating;
+
+        if (totalRatings == 0) {
           return Container(
             padding: const EdgeInsets.symmetric(
               horizontal: AppConstants.spacingS,
@@ -846,19 +846,17 @@ class _ItemTypeScreenState extends ConsumerState<ItemTypeScreen>
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                SizedBox(
-                  width: AppConstants.iconS,
-                  height: AppConstants.iconS,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.grey,
-                  ),
+                Icon(
+                  Icons.people_outline,
+                  size: AppConstants.iconS,
+                  color: Colors.grey,
                 ),
                 const SizedBox(width: AppConstants.spacingXS),
                 Text(
-                  '...',
+                  '0',
                   style: TextStyle(
                     fontSize: AppConstants.fontM,
+                    fontWeight: FontWeight.bold,
                     color: Colors.grey,
                   ),
                 ),
@@ -867,155 +865,111 @@ class _ItemTypeScreenState extends ConsumerState<ItemTypeScreen>
           );
         }
 
-        final response = snapshot.data!;
-
-        return response.when(
-          success: (data, _) {
-            final totalRatings = data['total_ratings'] as int;
-            // Handle both int and double for average_rating
-            final averageRating = (data['average_rating'] as num).toDouble();
-
-            if (totalRatings == 0) {
-              return Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppConstants.spacingS,
-                  vertical: AppConstants.spacingXS,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.grey.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(AppConstants.radiusS),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.people_outline,
-                      size: AppConstants.iconS,
-                      color: Colors.grey,
-                    ),
-                    const SizedBox(width: AppConstants.spacingXS),
-                    Text(
-                      '0',
-                      style: TextStyle(
-                        fontSize: AppConstants.fontM,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.grey,
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }
-
-            return Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppConstants.spacingS,
-                vertical: AppConstants.spacingXS,
+        return Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppConstants.spacingS,
+            vertical: AppConstants.spacingXS,
+          ),
+          decoration: BoxDecoration(
+            color: AppConstants.communityRatingColor.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(AppConstants.radiusS),
+            border: Border.all(
+              color: AppConstants.communityRatingColor.withValues(alpha: 0.3),
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.people,
+                size: AppConstants.iconS,
+                color: AppConstants.communityRatingColor,
               ),
-              decoration: BoxDecoration(
-                color: AppConstants.communityRatingColor.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(AppConstants.radiusS),
-                border: Border.all(
+              const SizedBox(width: AppConstants.spacingXS),
+              Text(
+                averageRating.toStringAsFixed(1),
+                style: TextStyle(
+                  fontSize: AppConstants.fontS,
+                  fontWeight: FontWeight.bold,
+                  color: AppConstants.communityRatingColor,
+                ),
+              ),
+              const SizedBox(width: AppConstants.spacingXS),
+              Text(
+                '($totalRatings)',
+                style: TextStyle(
+                  fontSize: AppConstants.fontXS,
                   color: AppConstants.communityRatingColor.withValues(
-                    alpha: 0.3,
+                    alpha: 0.7,
                   ),
                 ),
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.people,
-                    size: AppConstants.iconS,
-                    color: AppConstants.communityRatingColor,
-                  ),
-                  const SizedBox(width: AppConstants.spacingXS),
-                  Text(
-                    averageRating.toStringAsFixed(1),
-                    style: TextStyle(
-                      fontSize: AppConstants.fontS,
-                      fontWeight: FontWeight.bold,
-                      color: AppConstants.communityRatingColor,
-                    ),
-                  ),
-                  const SizedBox(width: AppConstants.spacingXS),
-                  Text(
-                    '($totalRatings)',
-                    style: TextStyle(
-                      fontSize: AppConstants.fontXS,
-                      color: AppConstants.communityRatingColor.withValues(
-                        alpha: 0.7,
-                      ),
-                    ),
-                  ),
-                ],
+            ],
+          ),
+        );
+      },
+      loading: () {
+        return Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppConstants.spacingS,
+            vertical: AppConstants.spacingXS,
+          ),
+          decoration: BoxDecoration(
+            color: Colors.grey.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(AppConstants.radiusS),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: AppConstants.iconS,
+                height: AppConstants.iconS,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.grey,
+                ),
               ),
-            );
-          },
-          error: (message, statusCode, errorCode, details) {
-            // Show placeholder on error
-            return Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppConstants.spacingS,
-                vertical: AppConstants.spacingXS,
+              const SizedBox(width: AppConstants.spacingXS),
+              Text(
+                '...',
+                style: TextStyle(
+                  fontSize: AppConstants.fontM,
+                  color: Colors.grey,
+                ),
               ),
-              decoration: BoxDecoration(
-                color: Colors.grey.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(AppConstants.radiusS),
+            ],
+          ),
+        );
+      },
+      error: (error, stackTrace) {
+        // Show placeholder on error
+        return Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppConstants.spacingS,
+            vertical: AppConstants.spacingXS,
+          ),
+          decoration: BoxDecoration(
+            color: Colors.grey.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(AppConstants.radiusS),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.error_outline,
+                size: AppConstants.iconS,
+                color: Colors.grey,
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.error_outline,
-                    size: AppConstants.iconS,
-                    color: Colors.grey,
-                  ),
-                  const SizedBox(width: AppConstants.spacingXS),
-                  Text(
-                    '--',
-                    style: TextStyle(
-                      fontSize: AppConstants.fontM,
-                      color: Colors.grey,
-                    ),
-                  ),
-                ],
+              const SizedBox(width: AppConstants.spacingXS),
+              Text(
+                '--',
+                style: TextStyle(
+                  fontSize: AppConstants.fontM,
+                  color: Colors.grey,
+                ),
               ),
-            );
-          },
-          loading: () {
-            return Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppConstants.spacingS,
-                vertical: AppConstants.spacingXS,
-              ),
-              decoration: BoxDecoration(
-                color: Colors.grey.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(AppConstants.radiusS),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  SizedBox(
-                    width: AppConstants.iconS,
-                    height: AppConstants.iconS,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.grey,
-                    ),
-                  ),
-                  const SizedBox(width: AppConstants.spacingXS),
-                  Text(
-                    '...',
-                    style: TextStyle(
-                      fontSize: AppConstants.fontM,
-                      color: Colors.grey,
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
+            ],
+          ),
         );
       },
     );
@@ -1091,18 +1045,17 @@ class _ItemTypeScreenState extends ConsumerState<ItemTypeScreen>
           Icon(
             Icons.construction,
             size: 80,
-            color: Theme.of(
-              context,
-            ).colorScheme.onSurface.withValues(alpha: 0.3),
+            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
           ),
           const SizedBox(height: AppConstants.spacingL),
           Text(
             context.l10n.comingSoon(
               ItemTypeLocalizer.getLocalizedItemType(context, widget.itemType),
             ),
-            style: Theme.of(
-              context,
-            ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+            style: Theme.of(context)
+                .textTheme
+                .headlineSmall
+                ?.copyWith(fontWeight: FontWeight.bold),
           ),
         ],
       ),
@@ -1124,9 +1077,10 @@ class _ItemTypeScreenState extends ConsumerState<ItemTypeScreen>
             context.l10n.noItemsAvailable(
               ItemTypeLocalizer.getLocalizedItemType(context, widget.itemType),
             ),
-            style: Theme.of(
-              context,
-            ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+            style: Theme.of(context)
+                .textTheme
+                .headlineSmall
+                ?.copyWith(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: AppConstants.spacingM),
           Text(
@@ -1199,31 +1153,31 @@ class _ItemTypeScreenState extends ConsumerState<ItemTypeScreen>
   Widget _buildSearchAndFilter() {
     if (widget.itemType != 'cheese') return const SizedBox.shrink();
 
-    final cheeseItemState = ref.watch(cheeseItemProvider);
+    final allItems = ItemProviderHelper.getItems(ref, widget.itemType);
+    final activeFilters = ItemProviderHelper.getActiveFilters(ref, widget.itemType);
+    final searchQuery = ItemProviderHelper.getSearchQuery(ref, widget.itemType);
     final ratingState = ref.watch(ratingProvider);
 
     // Get available filter options
     final availableFilters = ItemFilterHelper.getAvailableFilters(
-      cheeseItemState.items,
+      allItems,
       widget.itemType,
     );
 
     return ItemSearchAndFilter(
       itemType: widget.itemType,
       onSearchChanged: (query) {
-        ref.read(cheeseItemProvider.notifier).updateSearchQuery(query);
+        ItemProviderHelper.updateSearchQuery(ref, widget.itemType, query);
       },
       onFilterChanged: (categoryKey, value) {
-        ref
-            .read(cheeseItemProvider.notifier)
-            .setCategoryFilter(categoryKey, value);
+        ItemProviderHelper.setCategoryFilter(ref, widget.itemType, categoryKey, value);
       },
       onClearFilters: () {
-        ref.read(cheeseItemProvider.notifier).clearFilters();
+        ItemProviderHelper.clearFilters(ref, widget.itemType);
       },
       availableFilters: availableFilters,
-      activeFilters: cheeseItemState.categoryFilters,
-      currentSearchQuery: cheeseItemState.searchQuery,
+      activeFilters: activeFilters,
+      currentSearchQuery: searchQuery,
       totalItems: _getTabSpecificTotalCount(),
       filteredItems: _getTabSpecificFilteredCount(),
       isPersonalListTab: _tabController.index == 1, // Pass current tab context

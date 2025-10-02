@@ -1319,4 +1319,70 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get followsDeviceLanguage => 'Suit la langue de l\'appareil';
+
+  @override
+  String get gin => 'Gin';
+
+  @override
+  String get gins => 'Gins';
+
+  @override
+  String get profileLabel => 'Profil';
+
+  @override
+  String get enterGinName => 'Entrer le nom du gin';
+
+  @override
+  String get enterProfile => 'Entrer le profil aromatique';
+
+  @override
+  String get profileHint => 'ex: Forestier / boréal, Floral, Épicé';
+
+  @override
+  String get profileHelperText => 'Optionnel - catégorie de saveur';
+
+  @override
+  String get ginCreated => 'Gin créé avec succès !';
+
+  @override
+  String get ginUpdated => 'Gin mis à jour avec succès !';
+
+  @override
+  String get ginDeleted => 'Gin supprimé avec succès !';
+
+  @override
+  String get createGin => 'Créer un Gin';
+
+  @override
+  String get editGin => 'Modifier le Gin';
+
+  @override
+  String get addGin => 'Ajouter un Gin';
+
+  @override
+  String get allGins => 'Tous les Gins';
+
+  @override
+  String get myGinList => 'Ma Liste de Gins';
+
+  @override
+  String get filterByProducer => 'Filtrer par producteur';
+
+  @override
+  String get filterByOrigin => 'Filtrer par origine';
+
+  @override
+  String get filterByProfile => 'Filtrer par profil';
+
+  @override
+  String get noGinsFound => 'Aucun gin trouvé';
+
+  @override
+  String get loadingGins => 'Chargement des gins...';
+
+  @override
+  String get profileRequired => 'Le profil est requis';
+
+  @override
+  String get editItemTooltip => 'Modifier l\'article';
 }
