@@ -1364,6 +1364,18 @@ abstract class AppLocalizations {
   /// **'Showing {filtered} of {total} items'**
   String showingResults(int filtered, int total);
 
+  /// Parameterized search hint for any item type
+  ///
+  /// In en, this message translates to:
+  /// **'Search {itemType}s by name...'**
+  String searchItemsByName(String itemType);
+
+  /// Generic search hint for any item type
+  ///
+  /// In en, this message translates to:
+  /// **'Search by name...'**
+  String get searchByName;
+
   /// Hint text for name-only cheese search field
   ///
   /// In en, this message translates to:
@@ -2179,6 +2191,138 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Follows device language'**
   String get followsDeviceLanguage;
+
+  /// Gin category name
+  ///
+  /// In en, this message translates to:
+  /// **'Gin'**
+  String get gin;
+
+  /// Plural gin category name
+  ///
+  /// In en, this message translates to:
+  /// **'Gins'**
+  String get gins;
+
+  /// Flavor profile field label for gin
+  ///
+  /// In en, this message translates to:
+  /// **'Profile'**
+  String get profileLabel;
+
+  /// Placeholder for gin name field
+  ///
+  /// In en, this message translates to:
+  /// **'Enter gin name'**
+  String get enterGinName;
+
+  /// Placeholder for profile field
+  ///
+  /// In en, this message translates to:
+  /// **'Enter flavor profile'**
+  String get enterProfile;
+
+  /// Hint text for profile field
+  ///
+  /// In en, this message translates to:
+  /// **'e.g., Forestier / boréal, Floral, Épicé'**
+  String get profileHint;
+
+  /// Helper text for profile field
+  ///
+  /// In en, this message translates to:
+  /// **'Optional - flavor category'**
+  String get profileHelperText;
+
+  /// Success message after creating gin
+  ///
+  /// In en, this message translates to:
+  /// **'Gin created successfully!'**
+  String get ginCreated;
+
+  /// Success message after updating gin
+  ///
+  /// In en, this message translates to:
+  /// **'Gin updated successfully!'**
+  String get ginUpdated;
+
+  /// Success message after deleting gin
+  ///
+  /// In en, this message translates to:
+  /// **'Gin deleted successfully!'**
+  String get ginDeleted;
+
+  /// Create gin screen title
+  ///
+  /// In en, this message translates to:
+  /// **'Create Gin'**
+  String get createGin;
+
+  /// Edit gin screen title
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Gin'**
+  String get editGin;
+
+  /// Add gin button text
+  ///
+  /// In en, this message translates to:
+  /// **'Add Gin'**
+  String get addGin;
+
+  /// All gins tab title
+  ///
+  /// In en, this message translates to:
+  /// **'All Gins'**
+  String get allGins;
+
+  /// My gin list tab title
+  ///
+  /// In en, this message translates to:
+  /// **'My Gin List'**
+  String get myGinList;
+
+  /// Filter by producer option
+  ///
+  /// In en, this message translates to:
+  /// **'Filter by producer'**
+  String get filterByProducer;
+
+  /// Filter by origin option
+  ///
+  /// In en, this message translates to:
+  /// **'Filter by origin'**
+  String get filterByOrigin;
+
+  /// Filter by flavor profile option for gin
+  ///
+  /// In en, this message translates to:
+  /// **'Filter by flavor profile'**
+  String get filterByProfile;
+
+  /// Message when no gins match search/filter
+  ///
+  /// In en, this message translates to:
+  /// **'No gins found'**
+  String get noGinsFound;
+
+  /// Loading message for gins
+  ///
+  /// In en, this message translates to:
+  /// **'Loading gins...'**
+  String get loadingGins;
+
+  /// Validation message for required profile field
+  ///
+  /// In en, this message translates to:
+  /// **'Profile is required'**
+  String get profileRequired;
+
+  /// Tooltip for edit item button
+  ///
+  /// In en, this message translates to:
+  /// **'Edit item'**
+  String get editItemTooltip;
 }
 
 class _AppLocalizationsDelegate

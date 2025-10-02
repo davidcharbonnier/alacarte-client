@@ -21,6 +21,8 @@ class RouteNames {
   static const String cheeseCreate = '/cheese/create';
   static const String cheeseEdit = '/cheese/edit';
   static const String cheeseDetail = '/cheese/detail';
+  static const String ginCreate = '/gin/create';
+  static const String ginEdit = '/gin/edit';
   static const String ratingCreate = '/rating/create';
   static const String ratingEdit = '/rating/edit';
   
@@ -31,6 +33,7 @@ class RouteNames {
 /// Route parameter names
 class RouteParams {
   static const String cheeseId = 'cheeseId';
+  static const String ginId = 'ginId';
   static const String userId = 'userId';
   static const String ratingId = 'ratingId';
   static const String itemType = 'itemType';
@@ -57,6 +60,8 @@ class RoutePaths {
   static const String cheeseCreate = '/cheese/create';
   static const String cheeseEdit = '/cheese/edit/:${RouteParams.cheeseId}';
   static const String cheeseDetail = '/cheese/detail/:${RouteParams.cheeseId}';
+  static const String ginCreate = '/gin/create';
+  static const String ginEdit = '/gin/edit/:${RouteParams.ginId}';
   static const String ratingCreate = '/rating/create/:${RouteParams.itemType}/:${RouteParams.itemId}';
   static const String ratingEdit = '/rating/edit/:${RouteParams.ratingId}';
   

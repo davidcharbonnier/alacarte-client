@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/rating_provider.dart';
-import '../../providers/item_provider.dart';
 import '../../models/rating.dart';
 import '../../models/api_response.dart';
 import '../../utils/constants.dart';
 import '../../utils/appbar_helper.dart';
 import '../../utils/localization_utils.dart';
 import '../../utils/safe_navigation.dart';
+import '../../utils/item_provider_helper.dart';
 import '../../widgets/rating/share_rating_dialog.dart';
 import '../../widgets/settings/settings_section_header.dart';
 import '../../widgets/settings/loading_banner.dart';
@@ -27,16 +27,10 @@ class PrivacySettingsScreen extends ConsumerStatefulWidget {
 class _PrivacySettingsScreenState extends ConsumerState<PrivacySettingsScreen> {
   bool _isLoadingItemData = false;
   String _selectedItemTypeFilter =
-      'all'; // Filter state: 'all', 'cheese', 'wine', etc.
+      'all'; // Filter state: 'all', 'cheese', 'gin', 'wine', etc.
 
-  // Track loaded items by type - easily extensible for new item types
-  final Map<String, Set<int>> _loadedItemIds = {
-    'cheese': <int>{},
-    // Future item types:
-    // 'wine': <int>{},
-    // 'beer': <int>{},
-    // 'coffee': <int>{},
-  };
+  // Track loaded items by type - automatically handles all item types
+  final Map<String, Set<int>> _loadedItemIds = {};
 
   @override
   void initState() {
@@ -562,81 +556,46 @@ class _PrivacySettingsScreenState extends ConsumerState<PrivacySettingsScreen> {
       final itemType = entry.key;
       final itemIds = entry.value.toList();
 
-      switch (itemType) {
-        case 'cheese':
-          await ref
-              .read(cheeseItemProvider.notifier)
-              .loadSpecificItems(itemIds);
-          _loadedItemIds['cheese']!.addAll(itemIds);
-          break;
-        // Future: Add wine, beer, etc.
-        default:
-          // Unknown item type - skip loading
-          break;
-      }
+      // Use ItemProviderHelper - works for any item type!
+      await ItemProviderHelper.loadSpecificItems(ref, itemType, itemIds);
+      
+      // Track loaded items
+      _loadedItemIds.putIfAbsent(itemType, () => <int>{}).addAll(itemIds);
     }
   }
 
   bool _isItemDataMissing(Rating rating) {
-    switch (rating.itemType) {
-      case 'cheese':
-        return rating.cheese == null;
-      // Future: Add wine, beer, etc.
-      default:
-        return true;
-    }
+    // Check if item exists in cache using helper
+    final items = ItemProviderHelper.getItems(ref, rating.itemType);
+    return !items.any((item) => item.id == rating.itemId);
   }
 
   // Display title methods
   String _getLocalizedRatingDisplayTitle(BuildContext context, Rating rating) {
-    // 1. Check embedded data
-    if (rating.cheese != null && rating.cheese is Map<String, dynamic>) {
-      final cheeseName = rating.cheese['name'] as String?;
-      final cheeseType = rating.cheese['type'] as String?;
-      if (cheeseName != null) {
-        if (cheeseType != null && cheeseType.isNotEmpty) {
-          return '$cheeseName ($cheeseType)';
-        } else {
-          return cheeseName;
-        }
-      }
+    // Try to get item from cache using helper (works for any item type)
+    final items = ItemProviderHelper.getItems(ref, rating.itemType);
+    final item = items.where((i) => i.id == rating.itemId).firstOrNull;
+    
+    if (item != null) {
+      // Use generic displayTitle from RateableItem interface
+      return item.displayTitle;
     }
-
-    // 2. Check cache
-    if (rating.itemType == 'cheese') {
-      final cheeseState = ref.read(cheeseItemProvider);
-      final cheese = cheeseState.items
-          .where((c) => c.id == rating.itemId)
-          .firstOrNull;
-      if (cheese != null) {
-        if (cheese.type.isNotEmpty) {
-          return '${cheese.name} (${cheese.type})';
-        } else {
-          return cheese.name;
-        }
-      }
-    }
-
-    // 3. Fallback
-    final itemType = rating.itemType == 'cheese'
-        ? context.l10n.cheese.toLowerCase()
-        : rating.itemType;
-
+    
+    // Fallback with localized item type
+    final localizedType = ItemTypeLocalizer.getLocalizedItemType(
+      context,
+      rating.itemType,
+    );
+    
     if (_isLoadingItemData && _isItemDataMissing(rating)) {
-      return '$itemType #${rating.itemId} (${context.l10n.loading})';
+      return '$localizedType #${rating.itemId} (${context.l10n.loading})';
     }
-
-    return '$itemType #${rating.itemId}';
+    
+    return '$localizedType #${rating.itemId}';
   }
 
   String _getItemTypeDisplayName(String itemType) {
-    switch (itemType) {
-      case 'cheese':
-        return context.l10n.cheese;
-      // Future: Add wine, beer, etc.
-      default:
-        return itemType;
-    }
+    return ItemTypeLocalizer.getLocalizedItemType(context, itemType);
   }
 
   // Action handlers

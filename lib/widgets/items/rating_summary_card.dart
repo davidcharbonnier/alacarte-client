@@ -1,33 +1,43 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/rateable_item.dart';
+import '../../providers/community_stats_provider.dart';
 import '../../utils/constants.dart';
 import '../../utils/localization_utils.dart';
 
 /// Reusable rating summary component showing community statistics
-class RatingSummaryCard extends StatelessWidget {
+class RatingSummaryCard extends ConsumerWidget {
   final RateableItem item;
-  final Map<String, dynamic>? communityStats;
-  final bool isLoading;
+  final String itemType;
 
   const RatingSummaryCard({
     super.key,
     required this.item,
-    required this.communityStats,
-    this.isLoading = false,
+    required this.itemType,
   });
 
   @override
-  Widget build(BuildContext context) {
-    if (isLoading) {
-      return _buildLoadingCard(context);
-    }
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Watch the community stats provider for this specific item
+    final statsAsync = ref.watch(
+      communityStatsProvider(
+        CommunityStatsParams(
+          itemType: itemType,
+          itemId: item.id!,
+        ),
+      ),
+    );
 
-    if (communityStats == null) {
-      return _buildErrorCard(context);
-    }
+    return statsAsync.when(
+      data: (stats) => _buildStatsCard(context, stats),
+      loading: () => _buildLoadingCard(context),
+      error: (error, stackTrace) => _buildErrorCard(context),
+    );
+  }
 
-    final totalRatings = communityStats!['total_ratings'] as int? ?? 0;
-    final averageRating = (communityStats!['average_rating'] as num?)?.toDouble() ?? 0.0;
+  Widget _buildStatsCard(BuildContext context, Map<String, dynamic> stats) {
+    final totalRatings = stats.totalRatings;
+    final averageRating = stats.averageRating;
 
     if (totalRatings == 0) {
       return Card(

@@ -198,7 +198,12 @@ class _ItemSearchAndFilterState extends ConsumerState<ItemSearchAndFilter> {
   }
 
   String _getSearchHint() {
-    return context.l10n.searchCheeseByNameHint;
+    // Use parameterized search hint with item type
+    final localizedItemType = ItemTypeLocalizer.getLocalizedItemType(
+      context,
+      widget.itemType,
+    );
+    return context.l10n.searchItemsByName(localizedItemType.toLowerCase());
   }
 
   Widget _buildFilterChips() {
@@ -302,6 +307,8 @@ class _ItemSearchAndFilterState extends ConsumerState<ItemSearchAndFilter> {
         return context.l10n.origin;
       case 'producer':
         return context.l10n.producer;
+      case 'profile':
+        return context.l10n.profileLabel;
       default:
         return categoryKey;
     }

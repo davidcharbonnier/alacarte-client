@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/rateable_item.dart';
 import '../models/cheese_item.dart';
+import '../models/gin_item.dart';
 import '../models/api_response.dart';
 import '../services/item_service.dart';
 
@@ -137,6 +138,8 @@ class ItemProvider<T extends RateableItem> extends StateNotifier<ItemState<T>> {
         // Clear service cache after data changes
         if (_itemService is CheeseItemService) {
           (_itemService as CheeseItemService).clearCache();
+        } else if (_itemService is GinItemService) {
+          (_itemService as GinItemService).clearCache();
         }
         
         final updatedItems = [...state.items, createdItem];
@@ -426,5 +429,71 @@ final filteredCheeseItemsProvider = Provider<List<CheeseItem>>((ref) {
 /// Computed provider for checking if cheese data exists
 final hasCheeseItemDataProvider = Provider<bool>((ref) {
   final itemState = ref.watch(cheeseItemProvider);
+  return itemState.items.isNotEmpty;
+});
+
+/// Specific provider for Gin items
+final ginItemProvider = StateNotifierProvider<GinItemProvider, ItemState<GinItem>>(
+  (ref) => GinItemProvider(ref.read(ginItemServiceProvider)),
+);
+
+/// Concrete implementation for Gin provider
+class GinItemProvider extends ItemProvider<GinItem> {
+  GinItemProvider(GinItemService ginService) : super(ginService);
+
+  @override
+  Future<void> _loadFilterOptions() async {
+    final ginService = _itemService as GinItemService;
+    
+    final producersResponse = await ginService.getGinProducers();
+    final originsResponse = await ginService.getGinOrigins();
+    final profilesResponse = await ginService.getGinProfiles();
+
+    producersResponse.when(
+      success: (producers, _) {
+        final currentOptions = Map<String, List<String>>.from(state.filterOptions);
+        currentOptions['producer'] = producers;
+        state = state.copyWith(filterOptions: currentOptions);
+      },
+      error: (_, __, ___, ____) {},
+      loading: () {},
+    );
+
+    originsResponse.when(
+      success: (origins, _) {
+        final currentOptions = Map<String, List<String>>.from(state.filterOptions);
+        currentOptions['origin'] = origins;
+        state = state.copyWith(filterOptions: currentOptions);
+      },
+      error: (_, __, ___, ____) {},
+      loading: () {},
+    );
+
+    profilesResponse.when(
+      success: (profiles, _) {
+        final currentOptions = Map<String, List<String>>.from(state.filterOptions);
+        currentOptions['profile'] = profiles;
+        state = state.copyWith(filterOptions: currentOptions);
+      },
+      error: (_, __, ___, ____) {},
+      loading: () {},
+    );
+  }
+
+  /// Gin-specific filtering methods
+  void setProducerFilter(String? producer) => setCategoryFilter('producer', producer);
+  void setOriginFilter(String? origin) => setCategoryFilter('origin', origin);
+  void setProfileFilter(String? profile) => setCategoryFilter('profile', profile);
+}
+
+/// Computed provider for filtered gin items
+final filteredGinItemsProvider = Provider<List<GinItem>>((ref) {
+  final itemState = ref.watch(ginItemProvider);
+  return itemState.filteredItems;
+});
+
+/// Computed provider for checking if gin data exists
+final hasGinItemDataProvider = Provider<bool>((ref) {
+  final itemState = ref.watch(ginItemProvider);
   return itemState.items.isNotEmpty;
 });

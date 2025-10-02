@@ -2,28 +2,28 @@ import 'package:flutter/material.dart';
 import 'rateable_item.dart';
 import '../utils/localization_utils.dart';
 
-/// CheeseItem - implements RateableItem interface for cheese-specific functionality
-class CheeseItem implements RateableItem {
+/// GinItem - implements RateableItem interface for gin-specific functionality
+class GinItem implements RateableItem {
   @override
   final int? id;
   @override
   final String name;
-  final String type;
-  final String origin;
   final String producer;
+  final String origin;
+  final String profile;
   final String? description;
 
-  const CheeseItem({
+  const GinItem({
     this.id,
     required this.name,
-    required this.type,
-    required this.origin,
     required this.producer,
+    required this.origin,
+    required this.profile,
     this.description,
   });
 
   @override
-  String get itemType => 'cheese';
+  String get itemType => 'gin';
 
   @override
   String get displayTitle => name;
@@ -36,26 +36,26 @@ class CheeseItem implements RateableItem {
 
   @override
   String get searchableText => 
-    '$name $type $origin $producer ${description ?? ''}'.toLowerCase();
+    '$name $producer $origin $profile ${description ?? ''}'.toLowerCase();
 
   @override
   Map<String, String> get categories => {
-    'type': type,
-    'origin': origin,
     'producer': producer,
+    'origin': origin,
+    'profile': profile,
   };
 
   @override
   List<DetailField> get detailFields => [
     DetailField(
-      label: 'Origin',
-      value: origin,
-      icon: Icons.public,
-    ),
-    DetailField(
-      label: 'Producer', 
+      label: 'Producer',
       value: producer,
       icon: Icons.business,
+    ),
+    DetailField(
+      label: 'Origin', 
+      value: origin,
+      icon: Icons.location_on,
     ),
     if (description != null && description!.isNotEmpty)
       DetailField(
@@ -69,14 +69,14 @@ class CheeseItem implements RateableItem {
   List<DetailField> getLocalizedDetailFields(BuildContext context) {
     return [
       DetailField(
-        label: context.l10n.originLabel,
-        value: origin,
-        icon: Icons.public,
-      ),
-      DetailField(
-        label: context.l10n.producerLabel, 
+        label: context.l10n.producerLabel,
         value: producer,
         icon: Icons.business,
+      ),
+      DetailField(
+        label: context.l10n.originLabel,
+        value: origin,
+        icon: Icons.location_on,
       ),
       if (description != null && description!.isNotEmpty)
         DetailField(
@@ -91,53 +91,53 @@ class CheeseItem implements RateableItem {
   Map<String, dynamic> toJson() {
     return {
       'ID': id,
-      'name': name, // Changed from 'Name' to 'name'
-      'type': type,
-      'origin': origin,
+      'name': name,
       'producer': producer,
+      'origin': origin,
+      'profile': profile,
       'description': description,
     };
   }
 
   /// Create from JSON
-  factory CheeseItem.fromJson(Map<String, dynamic> json) {
-    return CheeseItem(
+  factory GinItem.fromJson(Map<String, dynamic> json) {
+    return GinItem(
       id: json['ID'] as int?,
-      name: (json['name'] as String?) ?? '', // Changed from 'Name' to 'name'
-      type: (json['type'] as String?) ?? '',
-      origin: (json['origin'] as String?) ?? '',
+      name: (json['name'] as String?) ?? '',
       producer: (json['producer'] as String?) ?? '',
+      origin: (json['origin'] as String?) ?? '',
+      profile: (json['profile'] as String?) ?? '',
       description: json['description'] as String?,
     );
   }
 
   @override
-  CheeseItem copyWith(Map<String, dynamic> updates) {
-    return CheeseItem(
+  GinItem copyWith(Map<String, dynamic> updates) {
+    return GinItem(
       id: updates['id'] ?? id,
       name: updates['name'] ?? name,
-      type: updates['type'] ?? type,
-      origin: updates['origin'] ?? origin,
       producer: updates['producer'] ?? producer,
+      origin: updates['origin'] ?? origin,
+      profile: updates['profile'] ?? profile,
       description: updates['description'] ?? description,
     );
   }
 
-  // Cheese-specific methods
-  CheeseItem copyWithCheese({
+  // Gin-specific methods
+  GinItem copyWithGin({
     int? id,
     String? name,
-    String? type,
-    String? origin,
     String? producer,
+    String? origin,
+    String? profile,
     String? description,
   }) {
-    return CheeseItem(
+    return GinItem(
       id: id ?? this.id,
       name: name ?? this.name,
-      type: type ?? this.type,
-      origin: origin ?? this.origin,
       producer: producer ?? this.producer,
+      origin: origin ?? this.origin,
+      profile: profile ?? this.profile,
       description: description ?? this.description,
     );
   }
@@ -145,40 +145,40 @@ class CheeseItem implements RateableItem {
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
-    return other is CheeseItem &&
+    return other is GinItem &&
         other.id == id &&
         other.name == name &&
-        other.type == type &&
-        other.origin == origin &&
         other.producer == producer &&
+        other.origin == origin &&
+        other.profile == profile &&
         other.description == description;
   }
 
   @override
   int get hashCode {
-    return Object.hash(id, name, type, origin, producer, description);
+    return Object.hash(id, name, producer, origin, profile, description);
   }
 
   @override
   String toString() {
-    return 'CheeseItem(id: $id, name: $name, type: $type, origin: $origin, producer: $producer, description: $description)';
+    return 'GinItem(id: $id, name: $name, producer: $producer, origin: $origin, profile: $profile, description: $description)';
   }
 }
 
-/// Extension for CheeseItem convenience methods
-extension CheeseItemExtension on CheeseItem {
-  /// Get all unique types from a list of cheese items
-  static List<String> getUniqueTypes(List<CheeseItem> cheeses) {
-    return cheeses.map((c) => c.type).toSet().toList()..sort();
+/// Extension for GinItem convenience methods
+extension GinItemExtension on GinItem {
+  /// Get all unique producers from a list of gin items
+  static List<String> getUniqueProducers(List<GinItem> gins) {
+    return gins.map((g) => g.producer).toSet().toList()..sort();
   }
   
-  /// Get all unique origins from a list of cheese items
-  static List<String> getUniqueOrigins(List<CheeseItem> cheeses) {
-    return cheeses.map((c) => c.origin).toSet().toList()..sort();
+  /// Get all unique origins from a list of gin items
+  static List<String> getUniqueOrigins(List<GinItem> gins) {
+    return gins.map((g) => g.origin).toSet().toList()..sort();
   }
   
-  /// Get all unique producers from a list of cheese items
-  static List<String> getUniqueProducers(List<CheeseItem> cheeses) {
-    return cheeses.map((c) => c.producer).toSet().toList()..sort();
+  /// Get all unique profiles from a list of gin items
+  static List<String> getUniqueProfiles(List<GinItem> gins) {
+    return gins.map((g) => g.profile).toSet().toList()..sort();
   }
 }

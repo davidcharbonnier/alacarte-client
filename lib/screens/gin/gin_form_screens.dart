@@ -1,39 +1,39 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../models/cheese_item.dart';
+import '../../models/gin_item.dart';
 import '../../models/api_response.dart';
 import '../../providers/item_provider.dart';
 import '../../services/item_service.dart';
 import '../../forms/generic_item_form_screen.dart';
 
-/// Screen for creating a new cheese item
-class CheeseCreateScreen extends ConsumerWidget {
-  const CheeseCreateScreen({super.key});
+/// Screen for creating a new gin item
+class GinCreateScreen extends ConsumerWidget {
+  const GinCreateScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return const GenericItemFormScreen<CheeseItem>(
-      itemType: 'cheese',
+    return const GenericItemFormScreen<GinItem>(
+      itemType: 'gin',
       // itemId and initialItem are null for create mode
     );
   }
 }
 
-/// Screen for editing an existing cheese item
-class CheeseEditScreen extends ConsumerStatefulWidget {
-  final int cheeseId;
+/// Screen for editing an existing gin item
+class GinEditScreen extends ConsumerStatefulWidget {
+  final int ginId;
 
-  const CheeseEditScreen({
+  const GinEditScreen({
     super.key,
-    required this.cheeseId,
+    required this.ginId,
   });
 
   @override
-  ConsumerState<CheeseEditScreen> createState() => _CheeseEditScreenState();
+  ConsumerState<GinEditScreen> createState() => _GinEditScreenState();
 }
 
-class _CheeseEditScreenState extends ConsumerState<CheeseEditScreen> {
-  CheeseItem? _cheese;
+class _GinEditScreenState extends ConsumerState<GinEditScreen> {
+  GinItem? _gin;
   bool _isLoading = true;
   String? _error;
 
@@ -41,31 +41,31 @@ class _CheeseEditScreenState extends ConsumerState<CheeseEditScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadCheese();
+      _loadGin();
     });
   }
 
-  Future<void> _loadCheese() async {
+  Future<void> _loadGin() async {
     setState(() {
       _isLoading = true;
       _error = null;
     });
 
     try {
-      // First try to find the cheese in the current provider state
-      final cheeseItemState = ref.read(cheeseItemProvider);
-      _cheese = cheeseItemState.items
-          .where((item) => item.id == widget.cheeseId)
+      // First try to find the gin in the current provider state
+      final ginItemState = ref.read(ginItemProvider);
+      _gin = ginItemState.items
+          .where((item) => item.id == widget.ginId)
           .firstOrNull;
 
       // If not found in cache, load from API
-      if (_cheese == null) {
-        final service = ref.read(cheeseItemServiceProvider);
-        final response = await service.getItemById(widget.cheeseId);
+      if (_gin == null) {
+        final service = ref.read(ginItemServiceProvider);
+        final response = await service.getItemById(widget.ginId);
         
-        if (response is ApiSuccess<CheeseItem>) {
-          _cheese = response.data;
-        } else if (response is ApiError<CheeseItem>) {
+        if (response is ApiSuccess<GinItem>) {
+          _gin = response.data;
+        } else if (response is ApiError<GinItem>) {
           _error = response.message;
         }
       }
@@ -92,7 +92,7 @@ class _CheeseEditScreenState extends ConsumerState<CheeseEditScreen> {
       );
     }
 
-    if (_error != null || _cheese == null) {
+    if (_error != null || _gin == null) {
       return Scaffold(
         appBar: AppBar(
           title: const Text('Error'),
@@ -109,7 +109,7 @@ class _CheeseEditScreenState extends ConsumerState<CheeseEditScreen> {
               ),
               const SizedBox(height: 16),
               Text(
-                _error ?? 'Cheese not found',
+                _error ?? 'Gin not found',
                 style: Theme.of(context).textTheme.titleMedium,
                 textAlign: TextAlign.center,
               ),
@@ -124,10 +124,10 @@ class _CheeseEditScreenState extends ConsumerState<CheeseEditScreen> {
       );
     }
 
-    return GenericItemFormScreen<CheeseItem>(
-      itemType: 'cheese',
-      itemId: widget.cheeseId,
-      initialItem: _cheese,
+    return GenericItemFormScreen<GinItem>(
+      itemType: 'gin',
+      itemId: widget.ginId,
+      initialItem: _gin,
     );
   }
 }

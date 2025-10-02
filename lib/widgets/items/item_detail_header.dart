@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/rateable_item.dart';
 import '../../models/cheese_item.dart';
+import '../../models/gin_item.dart';
 import '../../utils/constants.dart';
 import '../../utils/localization_utils.dart';
 
@@ -10,6 +11,18 @@ class ItemDetailHeader extends StatelessWidget {
   final VoidCallback? onEditPressed;
 
   const ItemDetailHeader({super.key, required this.item, this.onEditPressed});
+
+  /// Get the badge text based on item type
+  String _getBadgeText() {
+    switch (item.itemType) {
+      case 'cheese':
+        return item.categories['type'] ?? 'Unknown';
+      case 'gin':
+        return item.categories['profile'] ?? 'Unknown';
+      default:
+        return item.categories['type'] ?? 'Unknown';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -43,7 +56,7 @@ class ItemDetailHeader extends StatelessWidget {
                     ),
                   ),
                   child: Text(
-                    item.categories['type'] ?? 'Unknown',
+                    _getBadgeText(),
                     style: TextStyle(
                       color: AppConstants.primaryColor,
                       fontWeight: FontWeight.w600,
@@ -63,7 +76,7 @@ class ItemDetailHeader extends StatelessWidget {
                       ),
                       foregroundColor: AppConstants.primaryColor,
                     ),
-                    tooltip: 'Edit item',
+                    tooltip: context.l10n.editItemTooltip,
                   ),
                 ],
               ],
@@ -72,9 +85,14 @@ class ItemDetailHeader extends StatelessWidget {
             const SizedBox(height: AppConstants.spacingM),
 
             // Item-specific fields (from detailFields)
-            ...(item is CheeseItem
-                    ? (item as CheeseItem).getLocalizedDetailFields(context)
-                    : item.detailFields)
+            ...(() {
+              if (item is CheeseItem) {
+                return (item as CheeseItem).getLocalizedDetailFields(context);
+              } else if (item is GinItem) {
+                return (item as GinItem).getLocalizedDetailFields(context);
+              }
+              return item.detailFields;
+            }())
                 .map(
                   (field) => field.isDescription
                       ? _buildDescriptionField(context, field)

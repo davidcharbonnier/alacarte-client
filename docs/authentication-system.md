@@ -17,7 +17,6 @@
 **Related Documentation:**
 - [Privacy Model](privacy-model.md)
 - [Rating System](rating-system.md)
-- **Backend Authentication** - See `rest-api/docs/authentication-system.md`
 ---
 
 ## Overview

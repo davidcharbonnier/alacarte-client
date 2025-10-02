@@ -1,5 +1,7 @@
 # A la carte
 
+[![📱 Android CI/CD Pipeline](https://github.com/davidcharbonnier/alacarte-client/actions/workflows/android-release.yml/badge.svg)](https://github.com/davidcharbonnier/alacarte-client/actions/workflows/android-release.yml)
+
 **Your personal rating and preference hub**
 
 A la carte is a sophisticated rating platform designed to help you curate and discover your preferences across various categories. Starting with cheese ratings, the app is built with extensibility in mind to support additional item categories in the future.
@@ -263,6 +265,76 @@ static Future<void> _handleConnectivityChange(results) async {
 - **Efficient Monitoring**: Only check server when platform indicates network changes
 - **Resource Conservation**: No constant polling or redundant validation
 
+### **📊 Community Statistics Caching (October 2025)**
+
+#### **Riverpod Provider-Based Caching**
+```dart
+// Community stats provider with automatic caching
+final communityStatsProvider = FutureProvider.family<Map<String, dynamic>, CommunityStatsParams>(
+  (ref, params) async {
+    final apiService = ref.watch(apiServiceProvider);
+    final response = await apiService.getCommunityStats(params.itemType, params.itemId);
+    
+    // Direct type checking pattern (documented best practice)
+    if (response is ApiSuccess<Map<String, dynamic>>) {
+      return response.data;
+    } else if (response is ApiError<Map<String, dynamic>>) {
+      throw Exception('Failed to load community stats: ${response.message}');
+    }
+    
+    throw Exception('Unexpected loading state');
+  },
+);
+```
+
+#### **Implementation Benefits**
+- **Zero Duplicate API Calls**: Riverpod caches results per (itemType, itemId) pair automatically
+- **Eliminated FutureBuilder Anti-Pattern**: No more futures recreated on every rebuild
+- **Automatic Cache Management**: Provider handles caching and lifecycle
+- **Manual Invalidation**: `ref.invalidate(communityStatsProvider)` clears cache on refresh
+- **Reusable Across App**: Same provider used in item lists and detail screens
+- **Proper Error Handling**: AsyncValue handles loading/error/data states
+
+#### **Performance Impact**
+- **Before**: N API calls per scroll (FutureBuilder recreated futures)
+- **After**: 1 API call per unique item (provider caches results)
+- **Cache Lifetime**: Persists across navigation within app session
+- **Cache Invalidation**: Only on explicit pull-to-refresh
+
+#### **Architecture Pattern**
+```dart
+// Item List Screen
+Widget _buildCommunityRatingsSummary(int itemId) {
+  final statsAsync = ref.watch(
+    communityStatsProvider(
+      CommunityStatsParams(itemType: widget.itemType, itemId: itemId),
+    ),
+  );
+  
+  return statsAsync.when(
+    data: (stats) => _buildBadge(stats.totalRatings, stats.averageRating),
+    loading: () => _buildLoadingBadge(),
+    error: (e, s) => _buildErrorBadge(),
+  );
+}
+
+// Item Detail Screen - RatingSummaryCard
+final statsAsync = ref.watch(
+  communityStatsProvider(
+    CommunityStatsParams(itemType: itemType, itemId: item.id!),
+  ),
+);
+```
+
+#### **Extension Helper**
+```dart
+// Convenient extension for accessing stats
+extension CommunityStatsExtension on Map<String, dynamic> {
+  int get totalRatings => (this['total_ratings'] as int?) ?? 0;
+  double get averageRating => (this['average_rating'] as num?)?.toDouble() ?? 0.0;
+}
+```
+
 ### **📊 Performance Metrics**
 
 #### **Before Optimizations**
@@ -276,19 +348,21 @@ static Future<void> _handleConnectivityChange(results) async {
 - Connectivity checks: 1 debounced health check
 - Form validation: Real-time button state updates
 - Loading time: ~600ms average startup
+- Community stats: 1 API call per unique item (provider-cached)
 
 #### **User Experience Improvements**
 - **50% faster startup**: Reduced average initialization time
 - **Zero duplicate requests**: Eliminated redundant network traffic
 - **Responsive forms**: Immediate validation feedback
 - **Professional loading**: Smooth transitions without UI flashes
+- **Efficient community stats**: No duplicate API calls on scroll/rebuild
 
 ### **🔧 Future Enhancement Opportunities**
 
 #### **Advanced Caching Strategy**
-- **Offline Persistence**: Extend caching to SharedPreferences/SQLite
-- **Batch Loading**: Single API call for all community ratings per item type
-- **Intelligent Refresh**: Smart cache invalidation based on user actions
+- **Offline Persistence**: Extend community stats caching to SharedPreferences/SQLite for offline viewing
+- **Batch Loading**: Single API call for all community stats per item type (further optimization)
+- **Intelligent Refresh**: Smart cache invalidation based on user actions (e.g., after rating)
 - **Progressive Loading**: Critical data first, supplementary data second
 
 #### **Real-Time Features**
@@ -478,91 +552,46 @@ AppInitializationProvider:
 
 ### **Adding a New Item Type: Step-by-Step**
 
-#### **Step 1: Create the Model (5 minutes)**
-```dart
-// lib/models/new_category_item.dart
-class NewCategoryItem implements RateableItem {
-  final int? id;
-  final String name;
-  // Add category-specific fields here
-  
-  @override
-  String get itemType => 'new_category';
-  
-  @override
-  String get displayTitle => name;
-  
-  @override
-  List<DetailField> get detailFields => [
-    DetailField(
-      label: 'Custom Field',
-      value: customField,
-      icon: Icons.category,
-    ),
-    // Add more fields specific to this category
-  ];
-  
-  // Implement remaining interface methods...
-}
-```
+**UPDATED October 2025:** After the Strategy Pattern refactoring, adding item types with full CRUD is easier than ever!
 
-#### **Step 2: Create the Service (10 minutes)**
-```dart
-// lib/services/new_category_service.dart
-class NewCategoryItemService extends ItemService<NewCategoryItem> {
-  @override
-  String get itemTypeEndpoint => 'new_category';
-  
-  @override
-  NewCategoryItem Function(dynamic) get fromJson => 
-    (json) => NewCategoryItem.fromJson(json as Map<String, dynamic>);
-  
-  @override
-  List<String> Function(NewCategoryItem) get validateItem => _validateItem;
-  
-  static List<String> _validateItem(NewCategoryItem item) {
-    final errors = <String>[];
-    if (item.name.trim().isEmpty) errors.add('Name is required');
-    return errors;
-  }
-}
-```
+**Time Estimate: ~50 minutes for complete implementation**
 
-#### **Step 3: Register the Provider (5 minutes)**
-```dart
-// lib/providers/item_provider.dart
-final newCategoryProvider = StateNotifierProvider<NewCategoryProvider, ItemState<NewCategoryItem>>(
-  (ref) => NewCategoryProvider(ref.read(newCategoryServiceProvider)),
-);
+For a **detailed step-by-step guide**, see:
+- **[📋 Complete Guide →](docs/adding-new-item-types.md)** - Full implementation details
+- **[✅ Quick Checklist →](docs/new-item-type-checklist.md)** - Fast reference checklist
+- **[🏗️ Form Strategy Pattern →](docs/form-strategy-pattern.md)** - CRUD form implementation
 
-class NewCategoryProvider extends ItemProvider<NewCategoryItem> {
-  NewCategoryProvider(NewCategoryItemService service) : super(service);
-}
+#### **Quick Overview:**
 
-final newCategoryServiceProvider = Provider<NewCategoryItemService>((ref) => NewCategoryItemService());
-```
+1. **Create Model** (~10 min) - Implement `RateableItem` interface
+2. **Create Service** (~10 min) - Extend `ItemService<T>` with caching
+3. **Register Provider** (~5 min) - Add to `item_provider.dart`
+4. **Create Form Strategy** (~10 min) - Define form fields and validation
+5. **Register Strategy** (~1 min) - Add to `ItemFormStrategyRegistry`
+6. **Create Form Screens** (~2 min) - Create/Edit screen wrappers
+7. **Update Helpers** (~5 min) - Add to `ItemProviderHelper` and `ItemTypeHelper`
+8. **Add Routes** (~2 min) - Register create/edit routes
+9. **Update Home Screen** (~2 min) - Add item type card
+10. **Add Localization** (~5 min) - French/English strings
 
-#### **Step 4: Update the Hub (2 minutes)**
-```dart
-// lib/screens/home/home_screen.dart - add new category card
-_buildItemTypeCard(
-  context,
-  'New Category',
-  'new_category',
-  Icons.category,
-  Colors.blue,
-  newCategoryState.items.length,
-  newCategoryRatings.length,
-),
-```
+**Total: ~52 minutes from start to fully working CRUD!**
 
-#### **Step 5: Add Backend Route (if not exists)**
-```dart
-// The ItemTypeScreen automatically works with any new category!
-// Navigation: /items/new_category loads ItemTypeScreen(itemType: 'new_category')
-```
+#### **What Works Automatically:**
 
-**Total Time: ~25 minutes to add a complete new item type!**
+Thanks to the generic architecture and Strategy Pattern:
+
+✅ **Item listing** - Both "All Items" and "My List" tabs  
+✅ **Item details** - Complete information display  
+✅ **Rating system** - Full CRUD for ratings  
+✅ **Sharing** - Share ratings with other users  
+✅ **Community stats** - Aggregate rating display  
+✅ **Navigation** - All routing and safe navigation  
+✅ **Offline support** - Connectivity handling  
+✅ **Search & filtering** - If enabled for the type  
+✅ **Theme support** - Light/dark mode  
+✅ **Localization** - French/English switching  
+
+**The Strategy Pattern eliminates form duplication - you just configure fields once!**
 
 ### **Development Workflow**
 
@@ -1007,6 +1036,7 @@ A la carte includes a comprehensive connectivity monitoring system to ensure use
 - **Item CRUD Operations** - Create and edit cheese entries with inline form design and full validation
 - **Advanced Sharing System** - Share/unshare ratings with users who completed their profiles
 - **Enhanced Sharing Dialog** - Clean interface with complete profile filtering
+- **Community Statistics Caching** - Riverpod provider-based caching eliminates duplicate API calls
 - **Optimized Community Statistics** - Single API endpoint for anonymous aggregate rating data
 - **Advanced Search & Filtering System** - Comprehensive filtering with mobile-optimized collapsible interface
 - **Context-Aware Filtering** - Different filter types per tab (discovery vs personal list management)
@@ -1023,7 +1053,6 @@ A la carte includes a comprehensive connectivity monitoring system to ensure use
 - **Production OAuth Deployment** - Migrate from mock OAuth to production Google OAuth
 - **Enhanced Privacy Controls** - Advanced sharing permissions and audit trails
 - **Item Deletion** - Delete cheese entries with proper validation and safety checks
-- **Performance Optimization** - Implement caching for community ratings to reduce API calls
 - **Quick Sharing Actions** - One-click sharing buttons directly in item lists
 - **Sharing Status Indicators** - Visual indicators showing which ratings are shared/private
 
@@ -1442,7 +1471,7 @@ French users get a completely localized experience from device detection through
 ## 🛠️ Development Setup
 
 ### **Prerequisites**
-- Flutter 3.24+ with Dart 3.5+ (official installation recommended)
+- Flutter 3.27+ with Dart 3.8+ (official installation recommended)
 - Google Cloud Console project with OAuth clients configured
 - **For Android**: Android Studio with Android SDK 36, NDK 27.0.12077973 + SHA-1 certificate fingerprint
 - **For Desktop**: Linux/macOS/Windows for desktop development
@@ -1465,7 +1494,7 @@ French users get a completely localized experience from device detection through
 1. **Clone the repository**
    ```bash
    git clone <repository-url>
-   cd client
+   cd alacarte-client
    ```
 
 2. **Install dependencies**
@@ -1473,24 +1502,29 @@ French users get a completely localized experience from device detection through
    flutter pub get
    ```
 
-3. **Configure Google OAuth**
-   ```dart
-   // lib/config/app_config.dart
-   static const String googleWebClientId = 'your-web-client-id.apps.googleusercontent.com';
+3. **Configure environment variables**
+   
+   Create a `.env` file in the project root:
+   ```bash
+   # .env - Development configuration (gitignored)
+   API_BASE_URL=https://alacarte-api-414358220433.northamerica-northeast1.run.app
+   GOOGLE_CLIENT_ID=414358220433-utddgtujirv58gt6g33kb7jei3shih27.apps.googleusercontent.com
+   APP_VERSION=1.0.0-dev
    ```
+   
+   **Note**: The `.env` file is gitignored and contains your local development configuration. Never commit this file.
 
-4. **Configure API endpoint**
-   ```dart
-   // lib/config/app_config.dart  
-   static const String baseUrl = 'https://alacarte-api-414358220433.northamerica-northeast1.run.app';
-   ```
-
-4. **Generate localization files (required after updates)**
+4. **Generate localization files**
    ```bash
    flutter gen-l10n
    ```
    
-   **Note**: Run this command whenever you add new localization keys to the .arb files. The app uses over 400 localized strings including loading screen messages, form validation, and contextual status indicators.
+   **Important**: Always run this command after:
+   - Cloning the repository for the first time
+   - Pulling updates that modify .arb files
+   - Adding new localization keys yourself
+   
+   The app uses 400+ localized strings (loading messages, form validation, status indicators, etc.) and won't compile without generated localization files.
 
 5. **Run the development server**
    ```bash
@@ -1509,9 +1543,9 @@ French users get a completely localized experience from device detection through
 For Android development, additional network configuration is required:
 
 1. **Configure local network access**
-   ```dart
-   // lib/config/app_config.dart
-   static const String baseUrl = 'http://192.168.0.22:8080/api'; // Your computer's IP
+   ```env
+   # Update your .env file with your computer's IP
+   API_BASE_URL=http://192.168.0.22:8080/api
    ```
 
 2. **Ensure backend accepts network connections**
@@ -1527,6 +1561,101 @@ For Android development, additional network configuration is required:
    ```
 
 **See [Android Setup Guide](docs/android-setup.md) for complete configuration details.**
+
+## 🚀 CI/CD Pipeline
+
+A la carte features an automated CI/CD pipeline for Android builds using GitHub Actions:
+
+### **✨ Automated Android Builds**
+
+#### **Pre-release Builds (feat/* and fix/* branches)**
+- **Trigger**: Pull requests from `feat/*` or `fix/*` branches
+- **Output**: Debug APK with development configuration
+- **Signing**: Default Android debug keystore (automatic)
+- **Package**: `com.alacarte.alc_client.debug`
+- **OAuth**: Development Google Cloud project
+- **Distribution**: GitHub pre-release with APK download
+
+#### **Production Builds (master branch)**
+- **Trigger**: Push to master branch
+- **Output**: Signed release APK with production configuration  
+- **Signing**: Custom release keystore (production)
+- **Package**: `com.alacarte.alc_client`
+- **OAuth**: Production Google Cloud project
+- **Distribution**: GitHub release with optimized APK
+
+### **🔧 Environment Configuration**
+
+The CI/CD pipeline uses environment variables for configuration management:
+
+#### **Required GitHub Variables** (non-sensitive):
+```
+DEVELOPMENT_API_URL = https://alacarte-api-414358220433.northamerica-northeast1.run.app
+DEVELOPMENT_GOOGLE_CLIENT_ID = 414358220433-utddgtujirv58gt6g33kb7jei3shih27.apps.googleusercontent.com
+PRODUCTION_API_URL = [your production API URL]
+PRODUCTION_GOOGLE_CLIENT_ID = [your production OAuth client ID]
+```
+
+#### **Required GitHub Secrets** (for production signing):
+```
+KEYSTORE_BASE64 = [base64 encoded release keystore]
+KEYSTORE_PASSWORD = [your keystore password]
+KEY_PASSWORD = [your key password]
+KEY_ALIAS = release
+```
+
+### **🔑 Keystore Setup**
+
+#### **Generate Release Keystore**
+```bash
+cd alacarte-client
+keytool -genkey -v -keystore android/app/release-keystore.jks \
+  -keyalg RSA -keysize 2048 -validity 10000 -alias release
+```
+
+#### **Encode for GitHub Secrets**
+```bash
+base64 -i android/app/release-keystore.jks | tr -d '\n'
+# Copy output and add as KEYSTORE_BASE64 secret
+```
+
+### **⚙️ Version Management**
+
+The pipeline uses GitVersion for semantic versioning:
+
+- **feat: new feature** → Minor version bump (1.0.0 → 1.1.0)
+- **fix: bug fix** → Patch version bump (1.0.0 → 1.0.1)  
+- **feat!: breaking change** → Major version bump (1.0.0 → 2.0.0)
+
+**Pre-release versions** include branch and build number:
+- `v1.2.3-feat-android-workflow.1`
+- `v1.2.4-fix-oauth-issue.2`
+
+### **📦 Build Artifacts**
+
+#### **Pre-release APKs**:
+- Available on GitHub pre-releases
+- Automatic PR comments with download links
+- Debug builds for testing
+- Uses development API and OAuth
+
+#### **Production APKs**:
+- Available on GitHub releases
+- Signed with release keystore
+- Optimized and minified
+- Uses production API and OAuth
+
+### **🏗️ Workflow Features**
+
+- **Automatic versioning** with GitVersion semantic versioning
+- **Environment-specific builds** (debug vs release)
+- **Secure credential management** with GitHub secrets
+- **Comprehensive changelogs** from conventional commits
+- **APK size reporting** in release notes
+- **PR automation** with status comments and download links
+- **Build validation** with configuration checks
+
+**See workflow file**: `.github/workflows/android-release.yml`
 
 ### **Development Workflow**
 
@@ -1673,8 +1802,8 @@ flutter build apk --release
 ### **📋 Future Features**
 
 #### **Core Platform Enhancements**
+- ✅ **Community Stats Caching** - Riverpod provider eliminates duplicate API calls with automatic caching
 - 📋 **Item Deletion** - Delete cheese entries with proper validation and safety checks
-- 📋 **Performance Optimization** - Caching for community ratings to reduce API calls
 - 📋 **Enhanced Offline Support** - Local data persistence and sync capabilities
 - 📋 **Real-time Updates** - WebSocket integration for live data updates
 
@@ -1766,34 +1895,41 @@ This is currently a personal project, but the architecture is designed for exten
 - **[🔒 Authentication System](docs/authentication-system.md)** - Google OAuth implementation and JWT token management
 - **[🛡️ Privacy Model](docs/privacy-model.md)** - Privacy-first sharing architecture and user controls
 - **[⭐ Rating System](docs/rating-system.md)** - Complete CRUD rating functionality and sharing
+- **[🏗️ Form Strategy Pattern](docs/form-strategy-pattern.md)** - Strategy Pattern for item CRUD forms
 - **[🔍 Filtering System](docs/filtering-system.md)** - Advanced search and filtering implementation
 - **[🤝 Sharing Implementation](docs/sharing-implementation.md)** - Collaborative rating sharing system
 - **[⚙️ Settings System](docs/settings-system.md)** - Modular settings architecture and widget library
 - **[🌍 Internationalization](docs/internationalization.md)** - French/English localization setup
 - **[🌐 Offline Handling](docs/offline-handling.md)** - Fullscreen offline system with automatic API retry
 - **[📱 Android Setup](docs/android-setup.md)** - Complete Android build configuration and development guide
+- **[🔧 Android OAuth Setup](docs/android-oauth-setup.md)** - Android-specific OAuth configuration
+- **[🔑 Google OAuth Setup](docs/google-oauth-setup.md)** - Complete Google OAuth setup guide
+- **[🚀 CI/CD Pipeline](docs/ci-cd-pipeline.md)** - Automated Android builds with GitHub Actions
 - **[🔄 Router Architecture](docs/router-architecture.md)** - Stable routing patterns and navigation best practices
 - **[🔔 Notification System](docs/notification-system.md)** - Unified notification styles and localization standards
 
 ### **Developer Guides**
 - **[🏗️ Architecture Overview](#🏗️-architecture-overview)** - Generic design patterns and extensibility
 - **[👨‍💻 Developer Onboarding](#🚀-developer-onboarding-guide)** - Step-by-step development guide
+- **[➕ Adding New Item Types](docs/adding-new-item-types.md)** - Complete guide for adding item types
+- **[✅ Item Type Checklist](docs/new-item-type-checklist.md)** - Quick reference checklist
+- **[📝 CI/CD Quick Setup](docs/ci-cd-quick-setup.md)** - Fast track guide for setting up the Android pipeline
 - **[📦 Package Upgrade Planning](docs/package-upgrade-planning.md)** - Dependency management and upgrade strategy
 
 ## 🚀 Future Enhancement Opportunities
 
-### **Performance Optimization - Community Rating Caching**
-The current implementation loads community ratings via individual API calls per item. Future enhancements could include:
+### **Performance Optimization - Advanced Caching**
+The current implementation includes efficient provider-based caching for community statistics. Future enhancements could include:
 
 **Batch Loading Strategy:**
-- Single API call to load all community ratings for an item type
-- Provider-level caching with TTL (5-10 minutes)
-- Offline persistence using SharedPreferences or SQLite
+- Single API call to load all community ratings for an item type (currently stats only)
+- Extended TTL caching with offline persistence
+- SQLite-based local storage for complete offline support
 - Manual refresh controls for users
 
 **Implementation Approach:**
 ```dart
-// Enhanced RatingProvider with caching
+// Enhanced RatingProvider with full offline persistence
 class RatingState {
   final Map<String, Map<int, List<Rating>>> communityRatingsCache;
   final Map<String, DateTime> cacheTimestamps;
@@ -1813,21 +1949,81 @@ class OfflineCache {
 ```
 
 **Benefits:**
-- Reduced API calls: N → 1 per item type
-- Offline functionality: Browse items and ratings without connectivity
-- Better performance: Instant display from cache
-- User control: Manual refresh when desired
+- Complete offline functionality for browsing
+- Instant display from persistent cache
+- User control over data freshness
+- Reduced network usage
 
 **Data Caching Priorities:**
-1. **High Priority**: Cheese items list, user's personal ratings
-2. **Medium Priority**: Community rating summaries, recently viewed items
-3. **Low Priority**: Shared ratings, rating statistics
+1. **High Priority**: Item lists, user's personal ratings
+2. **Medium Priority**: Individual rating details, recently viewed items
+3. **Low Priority**: Shared ratings, extended statistics
 
-This enhancement would significantly improve app performance and offline usability while maintaining the current clean architecture.
+This enhancement would provide complete offline browsing capabilities while maintaining the current clean architecture.
 
 ---
 
 ## Recent Improvements - September 2025
+
+### Community Stats Provider Implementation (October 2025)
+
+#### **Riverpod Provider Architecture**
+- **FutureProvider.family Pattern**: Proper state management for community statistics
+- **Automatic Caching**: Stats cached per (itemType, itemId) pair throughout app session
+- **Eliminated FutureBuilder Anti-pattern**: Replaced problematic FutureBuilder with provider
+- **Direct Type Checking**: Uses documented ApiResponse pattern for type safety
+- **Cache Invalidation**: Simple `ref.invalidate()` on pull-to-refresh
+
+#### **Performance Improvements**
+- **Zero Duplicate API Calls**: Provider caches results automatically on scroll/rebuild
+- **App-wide Availability**: Stats accessible from any widget via provider
+- **Efficient State Management**: AsyncValue handles loading/error/data states
+- **Reduced Code Complexity**: Eliminated ~40 lines of FutureBuilder boilerplate per usage
+- **Better UX**: No flickering or repeated loading states
+
+#### **Technical Implementation**
+- **Provider Location**: `lib/providers/community_stats_provider.dart`
+- **Widget Updates**: `RatingSummaryCard` converted to ConsumerWidget
+- **Screen Updates**: Both item list and detail screens use provider
+- **Extension Methods**: Convenient accessors for stats data (totalRatings, averageRating)
+- **Type Safety**: CommunityStatsParams class ensures proper provider family usage
+
+#### **Developer Benefits**
+- **Reusable Pattern**: Provider can be accessed from any screen
+- **Clean Architecture**: Separation of data fetching from UI
+- **Easy Testing**: Provider can be mocked for widget tests
+- **Documented Pattern**: Follows ApiResponse direct type checking best practice
+- **Scalable Design**: Ready for additional stat types without refactoring
+
+### Android CI/CD Pipeline Implementation
+
+#### **Automated Build System**
+- **GitHub Actions Workflow**: Complete CI/CD pipeline for Android builds
+- **Pre-release Automation**: Automatic debug APK generation for feat/* and fix/* branches
+- **Production Releases**: Signed release APKs for master branch pushes
+- **GitVersion Integration**: Semantic versioning with conventional commits
+- **Environment Configuration**: Dotenv-based configuration with strict validation
+
+#### **Configuration Management**
+- **Dotenv Implementation**: Migrated from compile-time constants to environment variables
+- **Strict Validation**: App fails fast with clear errors if configuration is missing
+- **GitHub Secrets Integration**: Secure credential management for CI/CD
+- **Build-Mode Detection**: Automatic dev/prod selection using kDebugMode
+- **No Fallbacks**: Production-ready configuration without silent defaults
+
+#### **Signing Strategy**
+- **Debug Signing**: Default Android debug keystore for development builds
+- **Release Signing**: Custom release keystore for production distribution
+- **Package Separation**: .debug suffix for development, production package for releases
+- **OAuth Isolation**: Separate OAuth clients for development and production
+- **SHA-1 Management**: Different certificates for different environments
+
+#### **Developer Experience**
+- **Automatic Versioning**: GitVersion handles version bumps automatically
+- **PR Automation**: Automatic comments with APK download links
+- **Clear Documentation**: Comprehensive CI/CD pipeline documentation
+- **Easy Setup**: Simple .env file for local development
+- **Dynamic App Version**: Settings screen shows version from environment variables
 
 ### App Initialization & Performance Enhancements
 

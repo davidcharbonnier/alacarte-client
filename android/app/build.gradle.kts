@@ -61,7 +61,7 @@ android {
             // ALWAYS use default debug signing (never use custom keystore for debug)
             // This ensures OAuth works with the standard Android debug certificate
             signingConfig = signingConfigs.getByName("debug")
-            applicationIdSuffix = ".debug"  // Commented out to match OAuth config
+            //applicationIdSuffix = ".debug"
             isDebuggable = true
         }
         

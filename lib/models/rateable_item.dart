@@ -59,6 +59,8 @@ class ItemTypeHelper {
     switch (itemType.toLowerCase()) {
       case 'cheese':
         return 'Cheese';
+      case 'gin':
+        return 'Gin';
       default:
         return itemType.capitalized;
     }
@@ -69,6 +71,8 @@ class ItemTypeHelper {
     switch (itemType.toLowerCase()) {
       case 'cheese':
         return Icons.local_pizza;
+      case 'gin':
+        return Icons.local_bar;
       case 'wine':
         return Icons.wine_bar;
       case 'beer':
@@ -85,6 +89,8 @@ class ItemTypeHelper {
     switch (itemType.toLowerCase()) {
       case 'cheese':
         return Colors.orange;
+      case 'gin':
+        return Colors.teal;
       case 'wine':
         return Colors.purple;
       case 'beer':
@@ -98,7 +104,7 @@ class ItemTypeHelper {
   
   /// Check if item type is supported
   static bool isItemTypeSupported(String itemType) {
-    const supportedTypes = ['cheese']; // Add more as they're implemented
+    const supportedTypes = ['cheese', 'gin']; // Add more as they're implemented
     return supportedTypes.contains(itemType.toLowerCase());
   }
 }

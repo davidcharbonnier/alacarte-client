@@ -11,7 +11,7 @@ import 'providers/auth_provider.dart';
 import 'providers/connectivity_provider.dart';
 import 'services/api_service.dart';
 import 'screens/common/fullscreen_offline_screen.dart';
-import 'item_type_registration.dart';
+
 
 void main() async {
   // Ensure Flutter binding is initialized first
@@ -19,9 +19,6 @@ void main() async {
   
   // Load environment variables
   await dotenv.load(fileName: ".env");
-  
-  // Initialize rateable item types before running the app
-  initializeRateableItemTypes();
   
   // Start connectivity monitoring after binding is initialized
   ApiService.startConnectivityMonitoring();

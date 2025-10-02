@@ -1398,6 +1398,22 @@
     }
   },
   
+  "searchItemsByName": "Search {itemType}s by name...",
+  "@searchItemsByName": {
+    "description": "Parameterized search hint for any item type",
+    "placeholders": {
+      "itemType": {
+        "type": "String",
+        "example": "cheese"
+      }
+    }
+  },
+  
+  "searchByName": "Search by name...",
+  "@searchByName": {
+    "description": "Generic search hint for any item type"
+  },
+  
   "searchCheeseByNameHint": "Search cheeses by name...",
   "@searchCheeseByNameHint": {
     "description": "Hint text for name-only cheese search field"
@@ -2155,5 +2171,115 @@
   "followsDeviceLanguage": "Follows device language",
   "@followsDeviceLanguage": {
     "description": "Description for automatic language setting"
+  },
+  
+  "gin": "Gin",
+  "@gin": {
+    "description": "Gin category name"
+  },
+  
+  "gins": "Gins",
+  "@gins": {
+    "description": "Plural gin category name"
+  },
+  
+  "profileLabel": "Profile",
+  "@profileLabel": {
+    "description": "Flavor profile field label for gin"
+  },
+  
+  "enterGinName": "Enter gin name",
+  "@enterGinName": {
+    "description": "Placeholder for gin name field"
+  },
+  
+  "enterProfile": "Enter flavor profile",
+  "@enterProfile": {
+    "description": "Placeholder for profile field"
+  },
+  
+  "profileHint": "e.g., Forestier / boréal, Floral, Épicé",
+  "@profileHint": {
+    "description": "Hint text for profile field"
+  },
+  
+  "profileHelperText": "Optional - flavor category",
+  "@profileHelperText": {
+    "description": "Helper text for profile field"
+  },
+  
+  "ginCreated": "Gin created successfully!",
+  "@ginCreated": {
+    "description": "Success message after creating gin"
+  },
+  
+  "ginUpdated": "Gin updated successfully!",
+  "@ginUpdated": {
+    "description": "Success message after updating gin"
+  },
+  
+  "ginDeleted": "Gin deleted successfully!",
+  "@ginDeleted": {
+    "description": "Success message after deleting gin"
+  },
+  
+  "createGin": "Create Gin",
+  "@createGin": {
+    "description": "Create gin screen title"
+  },
+  
+  "editGin": "Edit Gin",
+  "@editGin": {
+    "description": "Edit gin screen title"
+  },
+  
+  "addGin": "Add Gin",
+  "@addGin": {
+    "description": "Add gin button text"
+  },
+  
+  "allGins": "All Gins",
+  "@allGins": {
+    "description": "All gins tab title"
+  },
+  
+  "myGinList": "My Gin List",
+  "@myGinList": {
+    "description": "My gin list tab title"
+  },
+  
+  "filterByProducer": "Filter by producer",
+  "@filterByProducer": {
+    "description": "Filter by producer option"
+  },
+  
+  "filterByOrigin": "Filter by origin",
+  "@filterByOrigin": {
+    "description": "Filter by origin option"
+  },
+  
+  "filterByProfile": "Filter by flavor profile",
+  "@filterByProfile": {
+    "description": "Filter by flavor profile option for gin"
+  },
+  
+  "noGinsFound": "No gins found",
+  "@noGinsFound": {
+    "description": "Message when no gins match search/filter"
+  },
+  
+  "loadingGins": "Loading gins...",
+  "@loadingGins": {
+    "description": "Loading message for gins"
+  },
+  
+  "profileRequired": "Profile is required",
+  "@profileRequired": {
+    "description": "Validation message for required profile field"
+  },
+  
+  "editItemTooltip": "Edit item",
+  "@editItemTooltip": {
+    "description": "Tooltip for edit item button"
   }
 }
