@@ -26,10 +26,10 @@ class CheeseItem implements RateableItem {
   String get itemType => 'cheese';
 
   @override
-  String get displayTitle => '$name ($type)';
+  String get displayTitle => name;
 
   @override
-  String get displaySubtitle => 'From $origin by $producer';
+  String get displaySubtitle => '$producer • $origin';
 
   @override
   bool get isNew => id == null;
