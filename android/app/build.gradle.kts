@@ -61,7 +61,8 @@ android {
             // ALWAYS use default debug signing (never use custom keystore for debug)
             // This ensures OAuth works with the standard Android debug certificate
             signingConfig = signingConfigs.getByName("debug")
-            //applicationIdSuffix = ".debug"
+            applicationIdSuffix = ".debug"
+            manifestPlaceholders["appLabel"] = "À la carte (Debug)"
             isDebuggable = true
         }
         
@@ -73,6 +74,7 @@ android {
                 signingConfigs.getByName("debug") // Fallback for CI without keystore
             }
             
+            manifestPlaceholders["appLabel"] = "À la carte"
             isMinifyEnabled = true
             isShrinkResources = true
             isDebuggable = false

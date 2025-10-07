@@ -1,12 +1,31 @@
 mode: ContinuousDeployment
+next-version: 0.1.0
 branches:
   master:
     mode: ContinuousDeployment
     increment: Patch
+    regex: ^master$
+    track-merge-target: false
   feature:
     mode: ContinuousDeployment
     increment: Minor
+    regex: ^feat(ure)?[/-]
+    tag: useBranchName
+    track-merge-target: false
   pull-request:
     mode: ContinuousDeployment
     increment: Inherit
-next-version: 1.0.0
+    regex: ^(pull|pull\-requests|pr)[/-]
+    tag: PullRequest
+    track-merge-target: true
+  hotfix:
+    mode: ContinuousDeployment
+    increment: Patch
+    regex: ^fix[/-]
+    tag: useBranchName
+    track-merge-target: false
+major-version-bump-message: '\+semver:\s?(breaking|major)|^feat!:|BREAKING CHANGE'
+minor-version-bump-message: '\+semver:\s?(feature|minor)|^feat:'
+patch-version-bump-message: '\+semver:\s?(fix|patch)|^fix:|^perf:'
+no-bump-message: '\+semver:\s?(none|skip)|^docs:|^chore:|^style:|^refactor:|^test:|^ci:'
+commit-message-incrementing: Enabled
