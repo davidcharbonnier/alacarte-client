@@ -50,8 +50,7 @@ dependencies:
 
   # Data Persistence
   shared_preferences: ^2.3.2
-  # flutter_secure_storage: ^9.2.2  # Temporarily disabled due to Linux build issues
-  # See TokenStorage service for secure storage implementation plan
+  flutter_secure_storage: ^9.2.2
 
   # Authentication
   google_sign_in: ^6.2.1
