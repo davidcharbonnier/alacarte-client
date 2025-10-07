@@ -693,40 +693,48 @@ class _ItemTypeScreenState extends ConsumerState<ItemTypeScreen>
   }
 
   Widget _buildNoFilterResultsState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.search_off,
-            size: 80,
-            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
-          ),
-          const SizedBox(height: AppConstants.spacingL),
-          Text(
-            context.l10n.noResultsFound,
-            style: Theme.of(context)
-                .textTheme
-                .headlineSmall
-                ?.copyWith(fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: AppConstants.spacingM),
-          Text(
-            context.l10n.adjustSearchFilters,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color:
-                      Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+    return ListView(
+      padding: const EdgeInsets.all(AppConstants.spacingM),
+      children: [
+        SizedBox(
+          height: MediaQuery.of(context).size.height * 0.6,
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.search_off,
+                  size: 80,
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
                 ),
+                const SizedBox(height: AppConstants.spacingL),
+                Text(
+                  context.l10n.noResultsFound,
+                  style: Theme.of(context)
+                      .textTheme
+                      .headlineSmall
+                      ?.copyWith(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: AppConstants.spacingM),
+                Text(
+                  context.l10n.adjustSearchFilters,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color:
+                            Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                      ),
+                ),
+                const SizedBox(height: AppConstants.spacingL),
+                OutlinedButton(
+                  onPressed: () {
+                    ItemProviderHelper.clearFilters(ref, widget.itemType);
+                  },
+                  child: Text(context.l10n.clearAllFilters),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: AppConstants.spacingL),
-          OutlinedButton(
-            onPressed: () {
-              ItemProviderHelper.clearFilters(ref, widget.itemType);
-            },
-            child: Text(context.l10n.clearAllFilters),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -1063,90 +1071,106 @@ class _ItemTypeScreenState extends ConsumerState<ItemTypeScreen>
   }
 
   Widget _buildEmptyItemsState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            ItemTypeHelper.getItemTypeIcon(widget.itemType),
-            size: 80,
-            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5),
-          ),
-          const SizedBox(height: AppConstants.spacingL),
-          Text(
-            context.l10n.noItemsAvailable(
-              ItemTypeLocalizer.getLocalizedItemType(context, widget.itemType),
-            ),
-            style: Theme.of(context)
-                .textTheme
-                .headlineSmall
-                ?.copyWith(fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: AppConstants.spacingM),
-          Text(
-            context.l10n.addFirstItem(
-              ItemTypeLocalizer.getLocalizedItemType(context, widget.itemType),
-            ),
-          ),
-          const SizedBox(height: AppConstants.spacingXL),
-          ElevatedButton.icon(
-            onPressed: _navigateToAddItem,
-            icon: const Icon(Icons.add),
-            label: Text(
-              context.l10n.addFirstItemButton(
-                ItemTypeLocalizer.getLocalizedItemType(
-                  context,
-                  widget.itemType,
+    return ListView(
+      padding: const EdgeInsets.all(AppConstants.spacingM),
+      children: [
+        SizedBox(
+          height: MediaQuery.of(context).size.height * 0.6,
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  ItemTypeHelper.getItemTypeIcon(widget.itemType),
+                  size: 80,
+                  color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5),
                 ),
-              ),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.primary,
-              foregroundColor: Colors.white,
+                const SizedBox(height: AppConstants.spacingL),
+                Text(
+                  context.l10n.noItemsAvailable(
+                    ItemTypeLocalizer.getLocalizedItemType(context, widget.itemType),
+                  ),
+                  style: Theme.of(context)
+                      .textTheme
+                      .headlineSmall
+                      ?.copyWith(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: AppConstants.spacingM),
+                Text(
+                  context.l10n.addFirstItem(
+                    ItemTypeLocalizer.getLocalizedItemType(context, widget.itemType),
+                  ),
+                ),
+                const SizedBox(height: AppConstants.spacingXL),
+                ElevatedButton.icon(
+                  onPressed: _navigateToAddItem,
+                  icon: const Icon(Icons.add),
+                  label: Text(
+                    context.l10n.addFirstItemButton(
+                      ItemTypeLocalizer.getLocalizedItemType(
+                        context,
+                        widget.itemType,
+                      ),
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ],
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
   Widget _buildEmptyMyListState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.bookmark_border,
-            size: 80,
-            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5),
-          ),
-          const SizedBox(height: AppConstants.spacingL),
-          Text(
-            context.l10n.yourListEmpty(
-              ItemTypeLocalizer.getLocalizedItemType(context, widget.itemType),
-            ),
-          ),
-          const SizedBox(height: AppConstants.spacingM),
-          Text(
-            context.l10n.rateItemsToBuild(
-              ItemTypeLocalizer.getLocalizedItemType(context, widget.itemType),
-            ),
-          ),
-          const SizedBox(height: AppConstants.spacingXL),
-          ElevatedButton.icon(
-            onPressed: () => _tabController.animateTo(0),
-            icon: const Icon(Icons.explore),
-            label: Text(
-              context.l10n.exploreItems(
-                ItemTypeLocalizer.getLocalizedItemType(
-                  context,
-                  widget.itemType,
+    return ListView(
+      padding: const EdgeInsets.all(AppConstants.spacingM),
+      children: [
+        SizedBox(
+          height: MediaQuery.of(context).size.height * 0.6,
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.bookmark_border,
+                  size: 80,
+                  color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5),
                 ),
-              ),
+                const SizedBox(height: AppConstants.spacingL),
+                Text(
+                  context.l10n.yourListEmpty(
+                    ItemTypeLocalizer.getLocalizedItemType(context, widget.itemType),
+                  ),
+                ),
+                const SizedBox(height: AppConstants.spacingM),
+                Text(
+                  context.l10n.rateItemsToBuild(
+                    ItemTypeLocalizer.getLocalizedItemType(context, widget.itemType),
+                  ),
+                ),
+                const SizedBox(height: AppConstants.spacingXL),
+                ElevatedButton.icon(
+                  onPressed: () => _tabController.animateTo(0),
+                  icon: const Icon(Icons.explore),
+                  label: Text(
+                    context.l10n.exploreItems(
+                      ItemTypeLocalizer.getLocalizedItemType(
+                        context,
+                        widget.itemType,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
