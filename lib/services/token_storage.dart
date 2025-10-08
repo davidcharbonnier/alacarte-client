@@ -1,68 +1,84 @@
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter/foundation.dart';
-import 'dart:io';
 
-/// Cross-platform secure token storage with documented Linux workaround
+/// Secure token storage using flutter_secure_storage
 /// 
-/// LINUX BUILD ISSUE: flutter_secure_storage has known build issues on recent
-/// Linux distributions (Ubuntu 24.04+, Fedora) due to JSON literal operator
-/// deprecation warnings in the underlying nlohmann/json library.
+/// SECURITY: JWT tokens contain sensitive user information (user ID, email, display name)
+/// and provide authentication for API calls. These must be stored securely.
 /// 
-/// References:
-/// - https://github.com/juliansteenbakker/flutter_secure_storage/issues/920
-/// - https://github.com/juliansteenbakker/flutter_secure_storage/issues/965
-/// - https://github.com/nlohmann/json/issues/4129
+/// MIGRATION NOTE (v1.0.0): Switched from SharedPreferences to flutter_secure_storage
+/// for improved security. Old tokens in SharedPreferences are automatically cleaned up
+/// on first launch. Users will need to re-authenticate once after the update.
 /// 
-/// CONFIRMED: Even with correct dependencies installed (libsecret, jsoncpp),
-/// the build fails due to compiler treating deprecation warnings as errors.
-/// 
-/// This is a DOCUMENTED UPSTREAM ISSUE, not a missing dependency problem.
-/// The workaround uses SharedPreferences on Linux during development while
-/// maintaining full security on production platforms (iOS, Android, Web).
+/// Platform-specific storage:
+/// - Android: AES encryption with Android Keystore
+/// - iOS: Keychain Services
+/// - Web: Web Crypto API with IndexedDB
+/// - Linux/Windows/macOS: Encrypted storage with OS keyring
 class TokenStorage {
   static const String _tokenKey = 'jwt_token';
   static const String _refreshTokenKey = 'refresh_token';
+  static const String _cleanupKey = 'secure_storage_cleanup_done';
   
-  /// Check if we should attempt secure storage
-  static bool get _shouldUseSecureStorage {
-    // CONFIRMED: Even with dependencies installed (libsecret, jsoncpp), the build
-    // fails due to JSON literal operator deprecation warnings in json.hpp
-    // This affects recent Linux distributions with newer compilers (LLVM 16+)
-    // 
-    // Disable secure storage on Linux in debug mode to avoid documented build issues
-    // Enable secure storage on production platforms (iOS, Android, Web) for security
-    if (kDebugMode && !kIsWeb && Platform.isLinux) {
-      return false; // Use SharedPreferences on Linux during development
+  // Initialize secure storage with platform-specific options
+  static const FlutterSecureStorage _secureStorage = FlutterSecureStorage(
+    aOptions: AndroidOptions(
+      encryptedSharedPreferences: true,
+    ),
+    iOptions: IOSOptions(
+      accessibility: KeychainAccessibility.first_unlock,
+    ),
+  );
+  
+  /// Clean up old tokens from SharedPreferences (one-time migration cleanup)
+  /// This runs once per installation to remove insecure legacy token storage
+  static Future<void> _cleanupOldStorage() async {
+    final prefs = await SharedPreferences.getInstance();
+    
+    // Check if cleanup already done
+    final cleanupDone = prefs.getBool(_cleanupKey) ?? false;
+    if (cleanupDone) {
+      return; // Already cleaned up
     }
-    return true; // Use secure storage on other platforms
-  }
-  
-  /// Read JWT token using SharedPreferences (secure storage disabled for Linux build compatibility)
-  static Future<String?> getToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_tokenKey);
-  }
-  
-  /// Save JWT token using SharedPreferences (secure storage disabled for Linux build compatibility)
-  static Future<void> saveToken(String token) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_tokenKey, token);
-  }
-  
-  /// Delete JWT token from storage
-  static Future<void> deleteToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_tokenKey);
-  }
-  
-  /// Delete all auth tokens from storage
-  static Future<void> deleteAllTokens() async {
-    final prefs = await SharedPreferences.getInstance();
+    
+    // Remove old tokens from SharedPreferences
     await prefs.remove(_tokenKey);
     await prefs.remove(_refreshTokenKey);
+    
+    // Mark cleanup as complete
+    await prefs.setBool(_cleanupKey, true);
+    
+    print('🧹 Cleaned up legacy token storage from SharedPreferences');
   }
   
-  /// Check if JWT token is expired (basic implementation for development)
+  /// Read JWT token from secure storage
+  static Future<String?> getToken() async {
+    // Ensure old storage is cleaned up
+    await _cleanupOldStorage();
+    
+    return await _secureStorage.read(key: _tokenKey);
+  }
+  
+  /// Save JWT token to secure storage
+  static Future<void> saveToken(String token) async {
+    // Ensure old storage is cleaned up
+    await _cleanupOldStorage();
+    
+    await _secureStorage.write(key: _tokenKey, value: token);
+  }
+  
+  /// Delete JWT token from secure storage
+  static Future<void> deleteToken() async {
+    await _secureStorage.delete(key: _tokenKey);
+  }
+  
+  /// Delete all auth tokens from secure storage
+  static Future<void> deleteAllTokens() async {
+    await _secureStorage.delete(key: _tokenKey);
+    await _secureStorage.delete(key: _refreshTokenKey);
+  }
+  
+  /// Check if JWT token is expired (basic implementation)
   static bool isTokenExpired(String token) {
     try {
       final parts = token.split('.');
@@ -81,8 +97,9 @@ class TokenStorage {
         }
       }
       
-      // For real JWT tokens, you would decode and check the 'exp' claim
-      // For now, tokens don't expire in development
+      // For real JWT tokens, check the 'exp' claim
+      // Note: Backend sets 24-hour expiration
+      // TODO: Implement proper JWT decoding to check exp claim
       return false;
     } catch (e) {
       return true; // If we can't parse it, consider it expired
@@ -91,6 +108,6 @@ class TokenStorage {
   
   /// Get info about current storage method (for debugging)
   static String get storageInfo {
-    return 'SharedPreferences (Linux Development - Documented flutter_secure_storage Build Issue)';
+    return 'Secure Storage (flutter_secure_storage with platform encryption)';
   }
 }

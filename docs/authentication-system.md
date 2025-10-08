@@ -459,40 +459,91 @@ class _DisplayNameSetupScreenState extends ConsumerState<DisplayNameSetupScreen>
 
 ## JWT Token Management
 
-### Secure Storage
+### Secure Storage (Updated v1.0.0)
+
+**Security Enhancement:** As of v1.0.0, JWT tokens are stored using `flutter_secure_storage` with platform-specific encryption instead of plain-text SharedPreferences.
+
+**Migration:** Users will be automatically signed out once after the v1.0.0 update as tokens migrate from insecure to secure storage. Old tokens are automatically cleaned up.
 
 ```dart
-// lib/services/token_storage_service.dart
-class TokenStorageService {
-  static const _storage = FlutterSecureStorage();
-  static const _tokenKey = 'jwt_token';
-  static const _refreshTokenKey = 'refresh_token';
+// lib/services/token_storage.dart
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+/// Secure token storage using flutter_secure_storage
+/// 
+/// SECURITY: JWT tokens contain sensitive user information (user ID, email, display name)
+/// and provide authentication for API calls. These must be stored securely.
+/// 
+/// Platform-specific storage:
+/// - Android: AES encryption with Android Keystore
+/// - iOS: Keychain Services
+/// - Web: Web Crypto API with IndexedDB
+/// - Linux/Windows/macOS: Encrypted storage with OS keyring
+class TokenStorage {
+  static const String _tokenKey = 'jwt_token';
+  static const String _refreshTokenKey = 'refresh_token';
+  static const String _cleanupKey = 'secure_storage_cleanup_done';
+  
+  // Initialize secure storage with platform-specific options
+  static const FlutterSecureStorage _secureStorage = FlutterSecureStorage(
+    aOptions: AndroidOptions(
+      encryptedSharedPreferences: true,
+    ),
+    iOptions: IOSOptions(
+      accessibility: KeychainAccessibility.first_unlock,
+    ),
+  );
+  
+  /// Clean up old tokens from SharedPreferences (one-time migration cleanup)
+  /// This runs once per installation to remove insecure legacy token storage
+  static Future<void> _cleanupOldStorage() async {
+    final prefs = await SharedPreferences.getInstance();
+    
+    // Check if cleanup already done
+    final cleanupDone = prefs.getBool(_cleanupKey) ?? false;
+    if (cleanupDone) {
+      return; // Already cleaned up
+    }
+    
+    // Remove old tokens from SharedPreferences
+    await prefs.remove(_tokenKey);
+    await prefs.remove(_refreshTokenKey);
+    
+    // Mark cleanup as complete
+    await prefs.setBool(_cleanupKey, true);
+    
+    debugPrint('🧹 Cleaned up legacy token storage from SharedPreferences');
+  }
+  
+  /// Read JWT token from secure storage
   static Future<String?> getToken() async {
-    try {
-      return await _storage.read(key: _tokenKey);
-    } catch (e) {
-      debugPrint('Error reading token: $e');
-      return null;
-    }
+    // Ensure old storage is cleaned up
+    await _cleanupOldStorage();
+    
+    return await _secureStorage.read(key: _tokenKey);
   }
-
+  
+  /// Save JWT token to secure storage
   static Future<void> saveToken(String token) async {
-    try {
-      await _storage.write(key: _tokenKey, value: token);
-    } catch (e) {
-      debugPrint('Error saving token: $e');
-    }
+    // Ensure old storage is cleaned up
+    await _cleanupOldStorage();
+    
+    await _secureStorage.write(key: _tokenKey, value: token);
   }
-
+  
+  /// Delete JWT token from secure storage
   static Future<void> deleteToken() async {
-    try {
-      await _storage.deleteAll();
-    } catch (e) {
-      debugPrint('Error deleting tokens: $e');
-    }
+    await _secureStorage.delete(key: _tokenKey);
   }
-
+  
+  /// Delete all auth tokens from secure storage
+  static Future<void> deleteAllTokens() async {
+    await _secureStorage.delete(key: _tokenKey);
+    await _secureStorage.delete(key: _refreshTokenKey);
+  }
+  
+  /// Check if JWT token is expired
   static bool isTokenExpired(String token) {
     try {
       final parts = token.split('.');
@@ -510,8 +561,64 @@ class TokenStorageService {
       return true;
     }
   }
+  
+  /// Get info about current storage method (for debugging)
+  static String get storageInfo {
+    return 'Secure Storage (flutter_secure_storage with platform encryption)';
+  }
 }
 ```
+
+### Storage Migration Flow
+
+**First Launch After v1.0.0 Update:**
+```
+1. User opens app
+   ↓
+2. TokenStorage.getToken() called
+   ↓
+3. Automatic cleanup runs:
+   - Checks if cleanup already done (via flag)
+   - Removes old tokens from SharedPreferences
+   - Sets cleanup complete flag
+   - Logs: "🧹 Cleaned up legacy token storage"
+   ↓
+4. Secure storage returns null (no token yet)
+   ↓
+5. User prompted to sign in again
+   ↓
+6. New token saved to secure storage (encrypted)
+```
+
+**Subsequent Launches:**
+```
+1. Cleanup check passes (already done)
+   ↓
+2. Token read from secure storage
+   ↓
+3. User proceeds directly to app
+```
+
+### Platform-Specific Security
+
+**Android:**
+- AES encryption with Android Keystore
+- Hardware-backed security when available
+- Encrypted SharedPreferences for additional layer
+
+**iOS:**
+- Keychain Services with `first_unlock` accessibility
+- Protected by device passcode/biometrics
+
+**Web:**
+- Web Crypto API for encryption
+- IndexedDB for persistent storage
+- No plain-text localStorage
+
+**Desktop (Linux/Windows/macOS):**
+- OS keyring integration
+- Encrypted at rest
+- Requires system authentication
 
 ### HTTP Interceptor
 

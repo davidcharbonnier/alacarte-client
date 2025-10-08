@@ -59,6 +59,13 @@ jobs:
         with:
           distribution: "zulu"
           java-version: "17"
+          cache: "gradle"
+
+      - name: 🔧 Set JAVA_HOME for Gradle
+        run: |
+          echo "JAVA_HOME=$JAVA_HOME" >> $GITHUB_ENV
+          echo "Java version being used:"
+          java -version
 
       - name: 🔧 Configure for Pre-release
         run: |
@@ -295,6 +302,14 @@ jobs:
         with:
           distribution: "zulu"
           java-version: "17"
+          cache: "gradle"
+
+      - name: 🔧 Set JAVA_HOME for Gradle
+        if: steps.should_release.outputs.should_release == 'true'
+        run: |
+          echo "JAVA_HOME=$JAVA_HOME" >> $GITHUB_ENV
+          echo "Java version being used:"
+          java -version
 
       - name: 🔐 Setup Android Keystore
         if: steps.should_release.outputs.should_release == 'true'
